@@ -4,8 +4,9 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
--- Script to run on teleport
+-- Script to run on teleport (load both the detection script and the main script)
 local scriptToRun = [[
+-- Main script (load detection and other features together)
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
@@ -45,12 +46,13 @@ statusLabel.TextScaled = true
 statusLabel.Text = "Checking..."
 statusLabel.Parent = frame
 
+-- Update status function
 local function updateStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
 end
 
--- Player proximity detection
+-- Detect players nearby
 local function isPlayerNearby()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
@@ -75,15 +77,15 @@ local function serverHop()
 
     if success and result and result.data then
         for _, server in ipairs(result.data) do
-            if server.id ~= game.JobId and server.playing < server.maxPlayers then
-                if server.playing > 5 then
-                    queue_on_teleport(scriptToRun)
-                    updateStatus("Activating", Color3.fromRGB(255, 165, 0))
-                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-                    return
-                end
+            local playerCountAfterJoin = server.playing + 1
+            if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 5 then
+                queue_on_teleport(scriptToRun)
+                updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+                return
             end
         end
+        updateStatus("No Smaller Servers", Color3.fromRGB(255, 80, 80))
     else
         warn("Failed to get server list")
     end
@@ -93,9 +95,17 @@ end
 task.spawn(function()
     while true do
         task.wait(1)
-        if isPlayerNearby() or #Players:GetPlayers() > 5 then
-            updateStatus("Hopping Server", Color3.fromRGB(255, 80, 80))
-            task.wait(0.5)
+        local nearby = isPlayerNearby()
+        local currentPlayerCount = #Players:GetPlayers()
+
+        if nearby then
+            updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
+            task.wait(0.9)
+            serverHop()
+            break
+        elseif currentPlayerCount > 5 then
+            updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
+            task.wait(0.9)
             serverHop()
             break
         else
