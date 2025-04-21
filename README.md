@@ -35,8 +35,3 @@ For use with BlockSpin or any similar Roblox experience
 Note:
 
 This script is for educational purposes only. Always respect game TOS and community rules.
-
-
----
-
-Let me know if you want a shorter version or one with tags like #RobloxScript, #AutoFarm, #ServerHopper.
