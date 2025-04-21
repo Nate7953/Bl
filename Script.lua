@@ -4,32 +4,35 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
--- Script to run after teleport
+-- Script to run on teleport
 local scriptToRun = [[
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui", game.CoreGui)
 screenGui.Name = "StatusGui"
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.ResetOnSpawn = false
-screenGui.Parent = game.CoreGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 100)
-frame.Position = UDim2.new(0.5, -125, 0.1, 0)
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 260, 0, 90)
+frame.Position = UDim2.new(0.5, -130, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = screenGui
 
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-Instance.new("UIStroke", frame).Color = Color3.fromRGB(60, 60, 60)
+local uiCorner = Instance.new("UICorner", frame)
+uiCorner.CornerRadius = UDim.new(0, 12)
 
-local statusLabel = Instance.new("TextLabel")
+local uiStroke = Instance.new("UIStroke", frame)
+uiStroke.Color = Color3.fromRGB(60, 60, 60)
+uiStroke.Thickness = 2
+
+local statusLabel = Instance.new("TextLabel", frame)
 statusLabel.Size = UDim2.new(1, 0, 0.5, 0)
 statusLabel.Position = UDim2.new(0, 0, 0, 0)
 statusLabel.BackgroundTransparency = 1
@@ -37,127 +40,126 @@ statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextScaled = true
 statusLabel.Text = "Checking..."
-statusLabel.Parent = frame
 
-local cycleLabel = Instance.new("TextLabel")
-cycleLabel.Size = UDim2.new(1, 0, 0.25, 0)
-cycleLabel.Position = UDim2.new(0, 0, 0.5, 0)
-cycleLabel.BackgroundTransparency = 1
-cycleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-cycleLabel.Font = Enum.Font.Gotham
-cycleLabel.TextScaled = true
-cycleLabel.Text = "Cycle: 0"
-cycleLabel.Parent = frame
+local serverCountLabel = Instance.new("TextLabel", frame)
+serverCountLabel.Size = UDim2.new(1, 0, 0.3, 0)
+serverCountLabel.Position = UDim2.new(0, 0, 0.5, 0)
+serverCountLabel.BackgroundTransparency = 1
+serverCountLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+serverCountLabel.Font = Enum.Font.Gotham
+serverCountLabel.TextScaled = true
+serverCountLabel.Text = "Server 0 / 0"
 
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(1, 0, 0.25, 0)
-toggleButton.Position = UDim2.new(0, 0, 0.75, 0)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
-toggleButton.Text = "ON"
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(0, 60, 0, 25)
+toggleButton.Position = UDim2.new(1, -65, 1, -30)
+toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+toggleButton.Text = "OFF"
 toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
 toggleButton.TextScaled = true
-toggleButton.Parent = frame
-Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 6)
 
--- Functions
+local toggleUICorner = Instance.new("UICorner", toggleButton)
+toggleUICorner.CornerRadius = UDim.new(0, 6)
+
 local detectionEnabled = true
-local visitedServerIds = {}
-local cycleCount = 0
-
 toggleButton.MouseButton1Click:Connect(function()
-    detectionEnabled = not detectionEnabled
-    toggleButton.Text = detectionEnabled and "ON" or "OFF"
-    toggleButton.BackgroundColor3 = detectionEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+	detectionEnabled = not detectionEnabled
+	if detectionEnabled then
+		toggleButton.Text = "ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+	else
+		toggleButton.Text = "OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	end
 end)
 
+-- Utilities
+local visitedServers = {}
 local function updateStatus(text, color)
-    statusLabel.Text = text
-    statusLabel.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+	statusLabel.Text = text
+	statusLabel.TextColor3 = color
+end
+
+local function updateServerCount(current, total)
+	serverCountLabel.Text = "Server " .. current .. " / " .. total
 end
 
 local function isPlayerNearby()
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
-    local myPos = char.HumanoidRootPart.Position
+	local char = LocalPlayer.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+	local myPos = char.HumanoidRootPart.Position
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if (myPos - player.Character.HumanoidRootPart.Position).Magnitude <= 35 then
-                return true
-            end
-        end
-    end
-    return false
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local theirPos = player.Character.HumanoidRootPart.Position
+			if (myPos - theirPos).Magnitude <= 35 then
+				return true
+			end
+		end
+	end
+	return false
 end
 
 local function getServers()
-    local allServers = {}
-    local cursor = ""
-    repeat
-        local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        if cursor ~= "" then url = url .. "&cursor=" .. cursor end
-
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-
-        if success and result and result.data then
-            for _, server in ipairs(result.data) do
-                table.insert(allServers, server)
-            end
-            cursor = result.nextPageCursor or ""
-        else
-            break
-        end
-    until cursor == "" or #allServers >= 200
-
-    return allServers
+	local servers = {}
+	local cursor = ""
+	repeat
+		local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor ~= "" and "&cursor=" .. cursor or "")
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(game:HttpGet(url))
+		end)
+		if success and result and result.data then
+			for _, server in ipairs(result.data) do
+				local afterJoin = server.playing + 1
+				if server.id ~= game.JobId and afterJoin >= 2 and afterJoin <= 5 then
+					table.insert(servers, server.id)
+				end
+			end
+			cursor = result.nextPageCursor or ""
+		else
+			break
+		end
+	until cursor == nil or cursor == ""
+	return servers
 end
 
-local function serverHop()
-    local servers = getServers()
-    for _, server in ipairs(servers) do
-        local id = server.id
-        local currentPlayers = server.playing
-        local totalPlayers = currentPlayers + 1
+local function serverHopLoop()
+	while true do
+		task.wait(2)
+		if not detectionEnabled then
+			updateStatus("Detection OFF", Color3.fromRGB(255, 0, 0))
+			continue
+		end
 
-        if id ~= game.JobId and not visitedServerIds[id] and totalPlayers >= 2 and totalPlayers <= 5 and currentPlayers < server.maxPlayers then
-            visitedServerIds[id] = true
-            queue_on_teleport(scriptToRun)
-            updateStatus("Hopping Server...", Color3.fromRGB(255, 165, 0))
-            TeleportService:TeleportToPlaceInstance(PlaceId, id, LocalPlayer)
-            return
-        end
-    end
+		local nearby = isPlayerNearby()
+		local currentCount = #Players:GetPlayers()
 
-    visitedServerIds = {}
-    cycleCount += 1
-    cycleLabel.Text = "Cycle: " .. cycleCount
-    updateStatus("Restarting Cycle...", Color3.fromRGB(200, 200, 50))
+		if nearby then
+			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
+		elseif currentCount > 5 then
+			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
+		else
+			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+			continue
+		end
+
+		local servers = getServers()
+		for i, id in ipairs(servers) do
+			updateServerCount(i, #servers)
+			if not visitedServers[id] then
+				visitedServers[id] = true
+				updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+				queue_on_teleport(scriptToRun)
+				TeleportService:TeleportToPlaceInstance(PlaceId, id, LocalPlayer)
+				return
+			end
+		end
+
+		-- Reset visited and loop again
+		visitedServers = {}
+		updateStatus("Restarting Cycle", Color3.fromRGB(255, 255, 0))
+	end
 end
 
--- Loop
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if not detectionEnabled then
-            updateStatus("Detection OFF", Color3.fromRGB(255, 50, 50))
-        else
-            local nearby = isPlayerNearby()
-            local currentCount = #Players:GetPlayers()
-
-            if nearby then
-                updateStatus("Player Close - Hopping", Color3.fromRGB(255, 80, 80))
-                task.wait(1)
-                serverHop()
-            elseif currentCount > 5 then
-                updateStatus("Too Many Players", Color3.fromRGB(255, 120, 80))
-                task.wait(1)
-                serverHop()
-            else
-                updateStatus("Safe", Color3.fromRGB(0, 255, 0))
-            end
-        end
-    end
-end)
+task.spawn(serverHopLoop)
