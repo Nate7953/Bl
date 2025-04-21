@@ -4,54 +4,11 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
--- Script to run on teleport
+-- Script to run on teleport (load both the detection script and the main script)
 local scriptToRun = [[
-    -- Load the Auto-Farm script
-    loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-
-    -- Function to detect nearby players
-    local function isPlayerNearby()
-        local char = game.Players.LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
-        local myPos = char.HumanoidRootPart.Position
-
-        for _, player in ipairs(game.Players:GetPlayers()) do
-            if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local theirPos = player.Character.HumanoidRootPart.Position
-                if (myPos - theirPos).Magnitude <= 35 then
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
-    -- Detect players nearby in the new server
-    while true do
-        wait(1)
-        if isPlayerNearby() then
-            -- Fire event if a player is nearby
-            game:GetService("ReplicatedStorage").Events.PlayerFound:Fire()
-
-            -- After detecting a player, attempt server hopping again
-            local success, result = pcall(function()
-                return game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
-            end)
-
-            if success and result then
-                local data = game:GetService("HttpService"):JSONDecode(result)
-                if data.data then
-                    for _, server in pairs(data.data) do
-                        if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, game.Players.LocalPlayer)
-                            break
-                        end
-                    end
-                end
-            end
-            break
-        end
-    end
+-- Main script (load detection and other features together)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
 -- Create GUI
@@ -122,8 +79,12 @@ local function serverHop()
         for _, server in pairs(result.data) do
             if server.playing < server.maxPlayers and server.id ~= game.JobId then
                 -- Queue both the teleportation script and the detection script to run on the new server
-                queue_on_teleport(scriptToRun)
-                
+                queue_on_teleport([[
+                    -- Main script (load detection and other features together)
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+                    loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+                ]])
+
                 updateStatus("Activating", Color3.fromRGB(255, 165, 0))
                 TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
                 return
