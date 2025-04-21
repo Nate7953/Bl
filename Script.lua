@@ -4,70 +4,62 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
-local visitedServers = {}
-local maxStored = 1000
-
--- Teleport scripts
+-- Script to run when teleporting
 local scriptToRun = [[
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
--- GUI creation
-local statusLabel
-local function createGUI()
-    local success, gui = pcall(function()
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "StatusGui"
-        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        screenGui.ResetOnSpawn = false
-        screenGui.Parent = game:GetService("CoreGui")
+-- Server ID tracking
+local visited = {}
+local currentIndex = 1
+local serverList = {}
 
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 220, 0, 60)
-        frame.Position = UDim2.new(0.5, -110, 0.1, 0)
-        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        frame.BackgroundTransparency = 0.1
-        frame.BorderSizePixel = 0
-        frame.Active = true
-        frame.Draggable = true
-        frame.Parent = screenGui
+-- GUI Setup
+local function createGui()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "StatusGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = game.CoreGui
 
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(0, 12)
-        uiCorner.Parent = frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 60)
+    frame.Position = UDim2.new(0.5, -110, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    frame.BackgroundTransparency = 0.1
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = screenGui
 
-        local uiStroke = Instance.new("UIStroke")
-        uiStroke.Color = Color3.fromRGB(60, 60, 60)
-        uiStroke.Thickness = 2
-        uiStroke.Parent = frame
+    local uiCorner = Instance.new("UICorner", frame)
+    uiCorner.CornerRadius = UDim.new(0, 12)
 
-        statusLabel = Instance.new("TextLabel")
-        statusLabel.Size = UDim2.new(1, 0, 1, 0)
-        statusLabel.BackgroundTransparency = 1
-        statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        statusLabel.Font = Enum.Font.GothamBold
-        statusLabel.TextScaled = true
-        statusLabel.Text = "Loading..."
-        statusLabel.Parent = frame
-    end)
+    local uiStroke = Instance.new("UIStroke", frame)
+    uiStroke.Color = Color3.fromRGB(60, 60, 60)
+    uiStroke.Thickness = 2
 
-    if not success then
-        warn("Failed to create GUI")
-    end
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.Text = "Loading..."
+
+    return label
 end
 
--- Safe GUI updater
+local statusLabel = createGui()
+
 local function updateStatus(text, color)
-    if statusLabel and statusLabel.Parent then
+    if statusLabel then
         statusLabel.Text = text
         statusLabel.TextColor3 = color
-    else
-        warn("[GUI] Can't update status: Label not ready.")
     end
 end
 
--- Nearby detection
+-- Player proximity check
 local function isPlayerNearby()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
@@ -84,75 +76,68 @@ local function isPlayerNearby()
     return false
 end
 
--- Fetch suitable servers
-local function getServers()
-    local servers = {}
+-- Fetch new servers
+local function fetchServers()
     local cursor = ""
+    local servers = {}
     repeat
-        local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100&cursor=%s", PlaceId, cursor)
+        local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100&cursor=%s"):format(PlaceId, cursor)
         local success, result = pcall(function()
             return HttpService:JSONDecode(game:HttpGet(url))
         end)
-
         if success and result and result.data then
-            for _, server in pairs(result.data) do
-                local players = server.playing
-                local serverId = server.id
-                if players >= 2 and players <= 4 and not visitedServers[serverId] then
+            for _, server in ipairs(result.data) do
+                if server.playing >= 2 and server.playing <= 4 and not visited[server.id] and server.id ~= game.JobId then
                     table.insert(servers, server)
                 end
             end
-            cursor = result.nextPageCursor or ""
+            cursor = result.nextPageCursor
         else
             break
         end
-    until cursor == "" or #servers >= 50
+        task.wait(0.2)
+    until not cursor or #servers >= 100
+
     return servers
 end
 
--- Server hop
+-- Hop to next server
 local function serverHop()
-    updateStatus("Searching servers...", Color3.fromRGB(255, 255, 0))
-
-    local servers = getServers()
-    if #servers == 0 then
-        visitedServers = {}
-        servers = getServers()
-        if #servers == 0 then
+    if #serverList == 0 then
+        serverList = fetchServers()
+        if #serverList == 0 then
             updateStatus("No servers found", Color3.fromRGB(255, 0, 0))
             return
         end
+        currentIndex = 1
     end
 
-    local target = servers[math.random(1, #servers)]
-    visitedServers[target.id] = true
-    if #visitedServers > maxStored then
-        visitedServers = {}
+    local server = serverList[currentIndex]
+    visited[server.id] = true
+    currentIndex += 1
+    if currentIndex > #serverList then
+        serverList = {}
     end
 
+    updateStatus("Hopping...", Color3.fromRGB(255, 165, 0))
     queue_on_teleport(scriptToRun)
-    updateStatus("Hopping server...", Color3.fromRGB(255, 165, 0))
-    TeleportService:TeleportToPlaceInstance(PlaceId, target.id, LocalPlayer)
+    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
 end
 
--- Start GUI
-createGUI()
-
--- Main monitor loop
+-- Main loop
 task.spawn(function()
     while true do
         task.wait(1)
-        local playerCount = #Players:GetPlayers()
-        local someoneClose = isPlayerNearby()
+        local count = #Players:GetPlayers()
 
-        if someoneClose then
-            updateStatus("Player too close!", Color3.fromRGB(255, 80, 80))
-            task.wait(1)
+        if isPlayerNearby() then
+            updateStatus("Player Nearby", Color3.fromRGB(255, 80, 80))
+            task.wait(0.9)
             serverHop()
             break
-        elseif playerCount > 5 then
-            updateStatus("Too many players!", Color3.fromRGB(255, 120, 0))
-            task.wait(1)
+        elseif count > 5 then
+            updateStatus("Too Many Players", Color3.fromRGB(255, 80, 80))
+            task.wait(0.9)
             serverHop()
             break
         else
