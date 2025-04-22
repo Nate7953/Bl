@@ -5,12 +5,24 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
 local visitedServers = {}
+local lastTeleportAttempt = 0
 
--- Script to run on teleport (loads main script + autofarm)
-local scriptToRun = [[
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-]]
+-- Script to run on teleport
+local function queueNextScript(serverId)
+	local scriptToRun = string.format([[
+		getgenv()._joinedServerId = "%s"
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+		loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+	]], serverId)
+	pcall(function()
+		queue_on_teleport(scriptToRun)
+	end)
+end
+
+if getgenv()._joinedServerId then
+	visitedServers[getgenv()._joinedServerId] = true
+	getgenv()._joinedServerId = nil
+end
 
 -- GUI elements
 local screenGui = Instance.new("ScreenGui")
@@ -100,8 +112,10 @@ local function isPlayerNearby()
 	return false
 end
 
--- Server hop logic (never repeat servers)
+-- Server hop logic
 local function serverHop()
+	lastTeleportAttempt = tick()
+
 	local success, result = pcall(function()
 		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
 	end)
@@ -109,9 +123,8 @@ local function serverHop()
 	if success and result and result.data then
 		for _, server in ipairs(result.data) do
 			local playerCountAfterJoin = server.playing + 1
-			if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 5 and not visitedServers[server.id] then
-				visitedServers[server.id] = true
-				queue_on_teleport(scriptToRun)
+			if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 7 and not visitedServers[server.id] then
+				queueNextScript(server.id)
 				updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
 				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
 				return
@@ -141,6 +154,20 @@ task.spawn(function()
 			serverHop()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+		end
+	end
+end)
+
+-- Retry teleport if it fails after 1 minute
+task.spawn(function()
+	while true do
+		task.wait(10)
+		if lastTeleportAttempt > 0 and tick() - lastTeleportAttempt >= 60 then
+			if not visitedServers[game.JobId] then
+				updateStatus("Retrying Teleport", Color3.fromRGB(255, 100, 100))
+				serverHop()
+			end
+			lastTeleportAttempt = 0
 		end
 	end
 end)
