@@ -133,9 +133,9 @@ task.spawn(function()
 
 		if isPlayerNearby() then
 			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
-			task.wait(1)
+			task.wait(0.1)
 			serverHop()
-		elseif currentPlayerCount > 5 then
+		elseif currentPlayerCount > 6 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
 			task.wait(4)
 			serverHop()
