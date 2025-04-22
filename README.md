@@ -1,37 +1,39 @@
 
----
-BlockSpin Smart Server Hopper with Player Detection GUI
+[NEW RELEASE] BlockSpin Low-Player Server Hopper + Auto-Farm Script [Delta / Mobile Compatible]
 
-This script is designed for the Roblox game BlockSpin. It intelligently hops servers based on player count and proximity, helping you avoid crowded servers and stay low-key for farming or grinding.
+This script is built to automatically join low-populated servers, detect nearby players, and server hop when needed — all while running a powerful auto-farming system in the background. Ideal for AFK farming, stealth grinding, and mobile users with Delta Executor.
+
+
+---
 
 Features:
 
-Smart Server Hopping:
-Automatically joins servers that will have only 2 to 5 players total (including you).
+Smart Server Hopper: Automatically joins servers with 1–4 players max (ensuring you won't join crowded servers).
 
-Proximity Detection:
-If any player gets within 35 studs of you, the script will hop to a new server.
+Live Player Count GUI: Shows how many players are in your current server.
 
-Live GUI Status:
-A draggable GUI shows your current status: Safe, Too Many Players, Player Close, etc.
+Auto Escape: Instantly hops to a new low-pop server if:
 
-Toggle ON/OFF Button:
-Easily start or stop detection with a button built into the GUI.
+Someone gets too close
 
-No Server Repeats:
-Keeps track of visited servers and only revisits once all others are cycled through.
-
-Teleport Script Loading:
-Automatically queues up your main grind scripts on teleport.
+Server exceeds 5 total players
 
 
-Requirements:
+Toggle Button: Turn detection On (green) or Off (red) whenever you want.
 
-Works with Delta Executor
+Never Repeats Servers: Keeps track of visited servers and only joins new ones.
 
-For use with BlockSpin or any similar Roblox experience
+Modern, Minimal GUI: Optimized for mobile devices and Delta’s UI.
+
+Reliable and crash-resistant: No more stuck states or broken detection.
 
 
-Note:
 
-This script is for educational purposes only. Always respect game TOS and community rules.
+---
+
+Credits To:
+
+Auto Farm Script 
+loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+Massive credit to the original author for the ATM + Steak House auto-farm logic included in this script.
+
