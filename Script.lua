@@ -129,7 +129,7 @@ task.spawn(function()
 			local players = #Players:GetPlayers()
 			if players > 5 then
 				updateStatus("Too Many Players", Color3.fromRGB(255, 80, 80))
-				task.wait(1)
+				task.wait(3)
 				hop()
 			elseif isPlayerClose() then
 				updateStatus("Player Close!", Color3.fromRGB(255, 100, 100))
