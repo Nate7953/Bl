@@ -137,7 +137,7 @@ task.spawn(function()
 			serverHop()
 		elseif currentPlayerCount > 7 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
-			task.wait(4.3)
+			task.wait(4.1)
 			serverHop()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
