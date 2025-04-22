@@ -14,9 +14,9 @@ Live Player Count GUI: Shows how many players are in your current server.
 
 Auto Escape: Instantly hops to a new low-pop server if:
 
-Someone gets too close
+Someone gets too close 35 studs
 
-Server exceeds 5 total players
+Server exceeds 8 total players
 
 
 Toggle Button: Turn detection On (green) or Off (red) whenever you want.
