@@ -5,31 +5,18 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
 local visitedServers = {}
-local lastTeleportAttempt = 0
+visitedServers[game.JobId] = true
 
--- Script to run on teleport
-local function queueNextScript(serverId)
- local scriptToRun = string.format([[
-  getgenv()._joinedServerId = "%s"
-  loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-  loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
- ]], serverId)
- pcall(function()
-  queue_on_teleport(scriptToRun)
- end)
-end
+local scriptToRun = [[
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+]]
 
-if getgenv()._joinedServerId then
- visitedServers[getgenv()._joinedServerId] = true
- getgenv()._joinedServerId = nil
-end
-
--- GUI elements
-local screenGui = Instance.new("ScreenGui")
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui", game.CoreGui)
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = game.CoreGui
 
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 240, 0, 70)
@@ -42,22 +29,19 @@ frame.Draggable = true
 frame.Parent = screenGui
 
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
-local uiStroke = Instance.new("UIStroke")
+local uiStroke = Instance.new("UIStroke", frame)
 uiStroke.Color = Color3.fromRGB(60, 60, 60)
 uiStroke.Thickness = 2
-uiStroke.Parent = frame
 
-local statusLabel = Instance.new("TextLabel")
+local statusLabel = Instance.new("TextLabel", frame)
 statusLabel.Size = UDim2.new(1, 0, 0.5, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextScaled = true
 statusLabel.Text = "Checking..."
-statusLabel.Parent = frame
 
-local countLabel = Instance.new("TextLabel")
+local countLabel = Instance.new("TextLabel", frame)
 countLabel.Size = UDim2.new(1, 0, 0.5, 0)
 countLabel.Position = UDim2.new(0, 0, 0.5, 0)
 countLabel.BackgroundTransparency = 1
@@ -65,11 +49,10 @@ countLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
-countLabel.Parent = frame
 
--- Toggle Button
+-- Toggle
 local toggle = true
-local toggleButton = Instance.new("TextButton")
+local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
 toggleButton.Position = UDim2.new(1, -65, 1, 5)
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
@@ -77,97 +60,107 @@ toggleButton.Text = "On"
 toggleButton.Font = Enum.Font.GothamBold
 toggleButton.TextScaled = true
 toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-toggleButton.Parent = frame
 
 toggleButton.MouseButton1Click:Connect(function()
- toggle = not toggle
- toggleButton.Text = toggle and "On" or "Off"
- toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    toggle = not toggle
+    toggleButton.Text = toggle and "On" or "Off"
+    toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
--- Update GUI
+-- GUI Update Functions
 local function updateStatus(text, color)
- statusLabel.Text = text
- statusLabel.TextColor3 = color
+    statusLabel.Text = text
+    statusLabel.TextColor3 = color
 end
 
 local function updatePlayerCount()
- local count = #Players:GetPlayers()
- local max = game:GetService("Players").MaxPlayers or "?"
- countLabel.Text = count .. " / " .. max .. " Players"
+    local count = #Players:GetPlayers()
+    local max = Players.MaxPlayers or "?"
+    countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Nearby player detection
+-- Nearby Detection
 local function isPlayerNearby()
- if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
- local myPos = LocalPlayer.Character.HumanoidRootPart.Position
- for _, player in ipairs(Players:GetPlayers()) do
-  if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-   local theirPos = player.Character.HumanoidRootPart.Position
-   if (myPos - theirPos).Magnitude <= 35 then
-    return true
-   end
-  end
- end
- return false
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
+    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local theirPos = player.Character.HumanoidRootPart.Position
+            if (myPos - theirPos).Magnitude <= 35 then
+                return true
+            end
+        end
+    end
+    return false
 end
 
--- Server hop logic
+-- Robust teleport retry
+local function robustTeleport(placeId, serverId)
+    for attempt = 1, 5 do
+        local success = pcall(function()
+            TeleportService:TeleportToPlaceInstance(placeId, serverId, LocalPlayer)
+        end)
+        if success then
+            updateStatus("Teleporting...", Color3.fromRGB(255, 165, 0))
+            return
+        else
+            task.wait(2)
+        end
+    end
+    updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
+end
+
+-- Server Hop
 local function serverHop()
- lastTeleportAttempt = tick()
-
- local success, result = pcall(function()
-  return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
- end)
-
- if success and result and result.data then
-  for _, server in ipairs(result.data) do
-   local playerCountAfterJoin = server.playing + 1
-   if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 7 and not visitedServers[server.id] then
-    queueNextScript(server.id)
-    updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
-    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-    return
-   end
-  end
-  updateStatus("No Smaller Servers", Color3.fromRGB(255, 80, 80))
- else
-  warn("Failed to get server list")
- end
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if success and result and result.data then
+        for _, server in ipairs(result.data) do
+            local playerCountAfterJoin = server.playing + 1
+            if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 5 and not visitedServers[server.id] then
+                visitedServers[server.id] = true
+                queue_on_teleport(scriptToRun)
+                robustTeleport(PlaceId, server.id)
+                return
+            end
+        end
+        updateStatus("No New Servers", Color3.fromRGB(255, 80, 80))
+    else
+        warn("Failed to get server list")
+    end
 end
 
--- Main loop
+-- Auto-rehop if stuck too long
+local lastJobId = game.JobId
+local lastHopTime = tick()
 task.spawn(function()
- while true do
-  task.wait(0.5)
-  if not toggle then continue end
-  updatePlayerCount()
-  local currentPlayerCount = #Players:GetPlayers()
-
-  if isPlayerNearby() then
-   updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
-   task.wait(0.1)
-   serverHop()
-  elseif currentPlayerCount > 7 then
-   updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
-   task.wait(4.1)
-   serverHop()
-  else
-   updateStatus("Safe", Color3.fromRGB(0, 255, 0))
-  end
- end
+    while true do
+        task.wait(60)
+        if game.JobId == lastJobId and tick() - lastHopTime > 300 then
+            updateStatus("Stuck? Rehopping", Color3.fromRGB(255, 0, 255))
+            serverHop()
+        end
+    end
 end)
 
--- Retry teleport if it fails after 1 minute
+-- Main Loop
 task.spawn(function()
- while true do
-  task.wait(10)
-  if lastTeleportAttempt > 0 and tick() - lastTeleportAttempt >= 60 then
-   if not visitedServers[game.JobId] then
-    updateStatus("Retrying Teleport", Color3.fromRGB(255, 100, 100))
-    serverHop()
-   end
-   lastTeleportAttempt = 0
-  end
- end
+    while true do
+        task.wait(1)
+        if not toggle then continue end
+        updatePlayerCount()
+        local count = #Players:GetPlayers()
+        if isPlayerNearby() then
+            updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
+            task.wait(0.1)
+            serverHop()
+        elseif count > 6 then
+            updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
+            task.wait(4)
+            serverHop()
+        else
+            updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+        end
+    end
 end)
