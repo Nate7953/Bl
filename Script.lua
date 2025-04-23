@@ -95,9 +95,19 @@ local function isPlayerNearby()
 end
 
 -- Function to teleport to a new server
+local isTeleporting = false  -- Lock to prevent teleporting multiple times at once
+
 local function teleportToServer()
+    if isTeleporting then
+        print("Teleport is already in process. Skipping this teleport.")
+        return
+    end
+
     if game.Players.NumPlayers > 8 then
         print("There are more than 8 players in the current server. Attempting to join a new server.")
+        
+        -- Set teleporting flag to true
+        isTeleporting = true
         
         -- Attempt to teleport to another server
         local success, message = pcall(function()
@@ -109,6 +119,10 @@ local function teleportToServer()
         else
             warn("Teleport failed: " .. message)
         end
+
+        -- Reset teleporting flag after a short delay
+        task.wait(5)  -- Adjust this wait time if necessary
+        isTeleporting = false
     else
         print("The server has fewer than 8 players, no need to hop.")
     end
