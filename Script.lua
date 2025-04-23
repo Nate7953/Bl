@@ -5,6 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
 local visitedServers = {}
+visitedServers[game.JobId] = true
 local lastTeleportTime = 0
 local awaitingTeleport = false
 
@@ -13,7 +14,13 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/head
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
--- GUI (untouched from your version)
+-- Execute saved script after teleport (Delta-compatible)
+if getgenv().ScriptToRun then
+	loadstring(getgenv().ScriptToRun)()
+	getgenv().ScriptToRun = nil
+end
+
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -101,7 +108,7 @@ end
 local function safeTeleport(serverId)
 	awaitingTeleport = true
 	lastTeleportTime = os.time()
-	queue_on_teleport(scriptToRun)
+	getgenv().ScriptToRun = scriptToRun
 	TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
 end
 
@@ -115,7 +122,7 @@ local function serverHop()
 	if success and result and result.data then
 		for _, server in ipairs(result.data) do
 			local playerCountAfterJoin = server.playing + 1
-			if server.id ~= game.JobId and playerCountAfterJoin <= 5 and not visitedServers[server.id] then
+			if server.id ~= game.JobId and playerCountAfterJoin <= 7 and not visitedServers[server.id] then
 				visitedServers[server.id] = true
 				updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
 				safeTeleport(server.id)
@@ -153,7 +160,7 @@ task.spawn(function()
 			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
 			task.wait(0.1)
 			serverHop()
-		elseif currentPlayerCount > 7 then
+		elseif currentPlayerCount > 5 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
 			task.wait(4.1)
 			serverHop()
