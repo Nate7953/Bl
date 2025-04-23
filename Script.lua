@@ -147,22 +147,10 @@ end
 -- MAIN LOOP
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.2)
         if not toggle then continue end
         updatePlayerCount()
 
         local currentPlayerCount = #Players:GetPlayers()
 
-        if isPlayerNearby() then
-            updateStatus("Player Too Close", Color3.fromRGB(255, 80, 80))
-            task.wait(0.2)
-            serverHop()
-        elseif currentPlayerCount >= 8 then
-            updateStatus("Too Many Players", Color3.fromRGB(255, 100, 80))
-            task.wait(4.1)
-            serverHop()
-        else
-            updateStatus("Safe", Color3.fromRGB(0, 255, 0))
-        end
-    end
-end)
+        if isPlayerNearby() then0
