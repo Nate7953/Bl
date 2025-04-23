@@ -7,11 +7,9 @@ local PlaceId = game.PlaceId
 local visitedServers = {}
 visitedServers[game.JobId] = true
 
-local scriptToRun = [[
--- Add your auto-farm script code here, it will be executed after teleportation
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-]]
+-- Define the two scripts that need to be loaded after teleport
+local script1 = "https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"
+local script2 = "https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -51,7 +49,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- Toggle
+-- Toggle for GUI
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -80,22 +78,7 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Nearby Detection
-local function isPlayerNearby()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
-    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local theirPos = player.Character.HumanoidRootPart.Position
-            if (myPos - theirPos).Magnitude <= 35 then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- Function to teleport to a new server
+-- Function to check if there are too many players and teleport
 local isTeleporting = false  -- Lock to prevent teleporting multiple times at once
 
 local function teleportToServer()
@@ -104,7 +87,8 @@ local function teleportToServer()
         return
     end
 
-    if game.Players.NumPlayers > 8 then
+    -- Check if the number of players is greater than 8
+    if #Players:GetPlayers() > 8 then
         print("There are more than 8 players in the current server. Attempting to join a new server.")
         
         -- Set teleporting flag to true
@@ -131,9 +115,9 @@ end
 
 -- Function to reload your scripts after teleport
 local function reloadScripts()
-    -- Ensure the script reloads only after teleport
     print("Reloading auto-farming and other scripts...")
-    loadstring(scriptToRun)()  -- Add your auto-farming script
+    loadstring(game:HttpGet(script1))()
+    loadstring(game:HttpGet(script2))()
 end
 
 -- Server Hop
@@ -157,18 +141,16 @@ task.spawn(function()
     end
 end)
 
--- Main Loop
+-- Main Loop to check player count and decide whether to teleport
 task.spawn(function()
     while true do
         task.wait(1)
         if not toggle then continue end
         updatePlayerCount()
         local count = #Players:GetPlayers()
-        if isPlayerNearby() then
-            updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
-            task.wait(0.1)
-            serverHop()
-        elseif count > 6 then
+        
+        -- Check if another player is nearby, if so, teleport
+        if count > 8 then
             updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
             task.wait(4)
             serverHop()
