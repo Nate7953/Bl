@@ -2,7 +2,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlaceId = game.PlaceId
+local PlaceId = 104715542330896
 
 -- TRACK VISITED SERVERS
 local visitedServers = {}
@@ -11,7 +11,7 @@ if getgenv()._joinedServerId then
     getgenv()._joinedServerId = nil
 end
 
--- GUI (Keep this part as it is)
+-- GUI (unchanged)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -48,7 +48,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- TOGGLE (Keep this part as it is)
+-- TOGGLE (unchanged)
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -65,7 +65,7 @@ toggleButton.MouseButton1Click:Connect(function()
     toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
--- STATUS UPDATE (Keep this part as it is)
+-- STATUS
 local function updateStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
@@ -77,14 +77,13 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- NEARBY PLAYER DETECTION (Keep this part as it is)
+-- PROXIMITY DETECTION
 local function isPlayerNearby()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
     local myPos = LocalPlayer.Character.HumanoidRootPart.Position
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local theirPos = player.Character.HumanoidRootPart.Position
-            if (myPos - theirPos).Magnitude <= 35 then
+            if (myPos - player.Character.HumanoidRootPart.Position).Magnitude <= 35 then
                 return true
             end
         end
@@ -92,7 +91,7 @@ local function isPlayerNearby()
     return false
 end
 
--- QUEUE SCRIPT ON TELEPORT (Assuming this function exists in your exploit)
+-- QUEUE SCRIPT ON TELEPORT
 local function queueNextScript(serverId)
     local scriptToRun = string.format([[
         getgenv()._joinedServerId = "%s"
@@ -106,17 +105,8 @@ end
 
 -- TELEPORT FAILSAFE
 local teleporting = false
-TeleportService.TeleportInitFailed:Connect(function(result, errorDetails, ...)
-    warn("Teleport Failed:")
-    warn("  Result:", result)
-    warn("  Error Details:", errorDetails)
-    warn("  Additional Info:", ...)
-    teleporting = false
-    updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
-    task.delay(5, serverHop) -- Retry after a short delay
-end)
+local lastTeleportTime = 0
 
--- SERVER HOP
 function serverHop()
     if teleporting then return end
 
@@ -129,23 +119,23 @@ function serverHop()
             local playerCountAfterJoin = server.playing + 1
             if server.id ~= game.JobId and playerCountAfterJoin <= 8 and not visitedServers[server.id] then
                 visitedServers[server.id] = true
-                queueNextScript(server.id)
-                updateStatus("Attempting Teleport", Color3.fromRGB(255, 165, 0))
                 teleporting = true
-                local successTeleport, errorMessage = pcall(function()
+                lastTeleportTime = tick()
+
+                queueNextScript(server.id)
+                updateStatus("Teleporting...", Color3.fromRGB(0, 255, 255))
+
+                local successTeleport, err = pcall(function()
                     TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
                 end)
 
-                if successTeleport then
-                    print("Successfully initiated teleport to:", server.id)
-                    updateStatus("Teleporting...", Color3.fromRGB(0, 255, 255))
-                    return
-                else
-                    warn("TeleportToPlaceInstance failed:", errorMessage)
+                if not successTeleport then
+                    warn("Teleport failed:", err)
                     updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
                     teleporting = false
-                    task.wait(1)
                 end
+
+                return
             end
         end
         updateStatus("No Suitable Servers Found", Color3.fromRGB(255, 0, 0))
@@ -155,7 +145,19 @@ function serverHop()
     end
 end
 
--- INITIAL PLAYER COUNT CHECK ON LOAD
+-- Teleport retry fallback
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if teleporting and tick() - lastTeleportTime > 60 then
+            teleporting = false
+            updateStatus("Teleport Timeout. Retrying...", Color3.fromRGB(255, 165, 0))
+            serverHop()
+        end
+    end
+end)
+
+-- INIT
 updatePlayerCount()
 local currentPlayerCount = #Players:GetPlayers()
 if currentPlayerCount > 7 or isPlayerNearby() then
@@ -168,7 +170,6 @@ task.spawn(function()
         task.wait(0.2)
         if not toggle then continue end
         updatePlayerCount()
-
         local currentPlayerCount = #Players:GetPlayers()
 
         if currentPlayerCount > 7 then
