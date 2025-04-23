@@ -88,37 +88,24 @@ local function isPlayerNearby()
 	return false
 end
 
--- SERVER HOP FUNCTION using TeleportService
+-- SERVER HOP FUNCTION (SIMPLE WORKING TELEPORT METHOD)
 local function serverHop()
-	updateStatus("Searching servers...", Color3.fromRGB(255, 255, 0))
-	local success, response = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-	end)
+	updateStatus("Checking player count...", Color3.fromRGB(255, 255, 0))
+	if #Players:GetPlayers() > 7 then
+		updateStatus("Too many players, hopping...", Color3.fromRGB(0, 255, 255))
+		local success, message = pcall(function()
+			TeleportService:Teleport(PlaceId, LocalPlayer)
+		end)
 
-	if not success or not response or not response.data then
-		updateStatus("Failed to get servers", Color3.fromRGB(255, 0, 0))
-		return
-	end
-
-	for _, server in ipairs(response.data) do
-		local count = server.playing
-		if count <= 7 and not visitedServers[server.id] and server.id ~= game.JobId then
-			visitedServers[server.id] = true
-			updateStatus("Hopping to new server...", Color3.fromRGB(0, 255, 255))
-
-			local success2, err = pcall(function()
-				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-			end)
-
-			if not success2 then
-				updateStatus("Teleport failed", Color3.fromRGB(255, 0, 0))
-				warn("Teleport failed: " .. tostring(err))
-			end
-			return
+		if success then
+			updateStatus("Teleported!", Color3.fromRGB(0, 255, 0))
+		else
+			updateStatus("Teleport failed", Color3.fromRGB(255, 0, 0))
+			warn("Teleport failed: " .. message)
 		end
+	else
+		updateStatus("Not enough players to hop", Color3.fromRGB(255, 255, 255))
 	end
-
-	updateStatus("No valid servers found", Color3.fromRGB(255, 0, 0))
 end
 
 -- INIT CHECK
