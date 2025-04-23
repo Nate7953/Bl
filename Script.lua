@@ -11,7 +11,7 @@ if getgenv()._joinedServerId then
     getgenv()._joinedServerId = nil
 end
 
--- GUI
+-- GUI (Keep this part as it is)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -48,7 +48,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- TOGGLE
+-- TOGGLE (Keep this part as it is)
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -65,7 +65,7 @@ toggleButton.MouseButton1Click:Connect(function()
     toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
--- STATUS UPDATE
+-- STATUS UPDATE (Keep this part as it is)
 local function updateStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
@@ -77,7 +77,7 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- NEARBY PLAYER DETECTION
+-- NEARBY PLAYER DETECTION (Keep this part as it is)
 local function isPlayerNearby()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
     local myPos = LocalPlayer.Character.HumanoidRootPart.Position
@@ -92,7 +92,7 @@ local function isPlayerNearby()
     return false
 end
 
--- QUEUE SCRIPT ON TELEPORT
+-- QUEUE SCRIPT ON TELEPORT (Assuming this function exists in your exploit)
 local function queueNextScript(serverId)
     local scriptToRun = string.format([[
         getgenv()._joinedServerId = "%s"
@@ -104,13 +104,13 @@ local function queueNextScript(serverId)
     end)
 end
 
--- TELEPORT FAILSAFE
+-- TELEPORT FAILSAFE (Keep this part as it is)
 local teleporting = false
 TeleportService.TeleportInitFailed:Connect(function(_, _, _)
     teleporting = false
 end)
 
--- SERVER HOP
+-- SERVER HOP (Keep this part as it is)
 local function serverHop()
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
@@ -134,8 +134,7 @@ local function serverHop()
                         serverHop()
                     end
                 end)
-
-                return
+                return -- Exit the loop after successfully initiating a teleport
             end
         end
         updateStatus("No New Servers", Color3.fromRGB(255, 0, 0))
@@ -144,7 +143,7 @@ local function serverHop()
     end
 end
 
--- MAIN LOOP
+-- MAIN LOOP (Modified to include your intended logic)
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -153,4 +152,10 @@ task.spawn(function()
 
         local currentPlayerCount = #Players:GetPlayers()
 
-        if isPlayerNearby() then0
+        if currentPlayerCount > 7 or isPlayerNearby() then
+            if not teleporting then -- Only hop if not already teleporting
+                serverHop()
+            end
+        end
+    end
+end)
