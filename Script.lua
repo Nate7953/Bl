@@ -3,169 +3,83 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
 
+-- Store visited servers
 local visitedServers = {}
-visitedServers[game.JobId] = true
-local lastTeleportTime = 0
-local awaitingTeleport = false
+visitedServers[CurrentJobId] = true
 
-local scriptToRun = [[
+-- This is the script to run again after teleport
+getgenv().ScriptToRun = [[
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
--- Execute saved script after teleport (Delta-compatible)
+-- If you just joined from teleport, run again
 if getgenv().ScriptToRun then
 	loadstring(getgenv().ScriptToRun)()
 	getgenv().ScriptToRun = nil
 end
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "StatusGui"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = game.CoreGui
+-- GUI to show what's going on
+local gui = Instance.new("ScreenGui", game.CoreGui)
+local label = Instance.new("TextLabel", gui)
+label.Size = UDim2.new(0, 300, 0, 50)
+label.Position = UDim2.new(0.5, -150, 0, 20)
+label.BackgroundTransparency = 0.4
+label.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.Text = "Starting..."
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 240, 0, 70)
-frame.Position = UDim2.new(0.5, -120, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BackgroundTransparency = 0.1
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
-
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
-local uiStroke = Instance.new("UIStroke")
-uiStroke.Color = Color3.fromRGB(60, 60, 60)
-uiStroke.Thickness = 2
-uiStroke.Parent = frame
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0.5, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextScaled = true
-statusLabel.Text = "Checking..."
-statusLabel.Parent = frame
-
-local countLabel = Instance.new("TextLabel")
-countLabel.Size = UDim2.new(1, 0, 0.5, 0)
-countLabel.Position = UDim2.new(0, 0, 0.5, 0)
-countLabel.BackgroundTransparency = 1
-countLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-countLabel.Font = Enum.Font.Gotham
-countLabel.TextScaled = true
-countLabel.Text = "0 / 0 Players"
-countLabel.Parent = frame
-
-local toggle = true
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 60, 0, 25)
-toggleButton.Position = UDim2.new(1, -65, 1, 5)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-toggleButton.Text = "On"
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextScaled = true
-toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-toggleButton.Parent = frame
-
-toggleButton.MouseButton1Click:Connect(function()
-	toggle = not toggle
-	toggleButton.Text = toggle and "On" or "Off"
-	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-end)
-
-local function updateStatus(text, color)
-	statusLabel.Text = text
-	statusLabel.TextColor3 = color
+-- Function to update GUI
+local function updateStatus(text)
+	label.Text = text
 end
 
-local function updatePlayerCount()
-	local count = #Players:GetPlayers()
-	local max = Players.MaxPlayers or "?"
-	countLabel.Text = count .. " / " .. max .. " Players"
-end
-
-local function isPlayerNearby()
-	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
-	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local theirPos = player.Character.HumanoidRootPart.Position
-			if (myPos - theirPos).Magnitude <= 35 then
-				return true
-			end
-		end
-	end
-	return false
-end
-
-local function safeTeleport(serverId)
-	awaitingTeleport = true
-	lastTeleportTime = os.time()
-	getgenv().ScriptToRun = scriptToRun
-	TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
-end
-
-local function serverHop()
-	if awaitingTeleport and os.time() - lastTeleportTime < 60 then return end
-
-	local success, result = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-	end)
-
-	if success and result and result.data then
-		for _, server in ipairs(result.data) do
-			local playerCountAfterJoin = server.playing + 1
-			if server.id ~= game.JobId and playerCountAfterJoin <= 7 and not visitedServers[server.id] then
-				visitedServers[server.id] = true
-				updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
-				safeTeleport(server.id)
-				return
-			end
-		end
-		updateStatus("No Servers Left", Color3.fromRGB(255, 80, 80))
-	else
-		warn("Failed to get server list.")
-	end
-end
-
--- Watch for teleport timeout (after 60s)
-task.spawn(function()
+-- Function to teleport to a new server
+local function teleportToNewServer()
 	while true do
-		task.wait(1)
-		if awaitingTeleport and os.time() - lastTeleportTime >= 60 then
-			awaitingTeleport = false
-			updateStatus("Retrying...", Color3.fromRGB(255, 0, 0))
-			task.wait(2)
-			serverHop()
-		end
-	end
-end)
+		local success, servers = pcall(function()
+			return HttpService:JSONDecode(game:HttpGet(
+				"https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+		end)
 
--- Main loop
-task.spawn(function()
-	while true do
-		task.wait(0.5)
-		if not toggle then continue end
-		updatePlayerCount()
-		local currentPlayerCount = #Players:GetPlayers()
-
-		if isPlayerNearby() then
-			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
-			task.wait(0.1)
-			serverHop()
-		elseif currentPlayerCount > 5 then
-			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
-			task.wait(4.1)
-			serverHop()
+		if success and servers and servers.data then
+			for _, server in ipairs(servers.data) do
+				local totalPlayers = server.playing
+				if server.id ~= CurrentJobId and not visitedServers[server.id] and totalPlayers < 7 then
+					visitedServers[server.id] = true
+					updateStatus("Teleporting to server with " .. totalPlayers .. " players...")
+					getgenv().ScriptToRun = [[
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+					]]
+					TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+					return
+				end
+			end
+			updateStatus("No servers found. Retrying...")
 		else
-			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+			updateStatus("Failed to get server list. Retrying...")
 		end
+		wait(3)
+	end
+end
+
+-- MAIN LOOP
+task.spawn(function()
+	while true do
+		local playerCount = #Players:GetPlayers()
+		if playerCount >= 7 then
+			updateStatus("Too many players: " .. playerCount .. " - Hopping...")
+			wait(2)
+			teleportToNewServer()
+			break
+		else
+			updateStatus("Good server: " .. playerCount .. " players")
+		end
+		wait(3)
 	end
 end)
