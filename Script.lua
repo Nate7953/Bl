@@ -7,14 +7,9 @@ local PlaceId = game.PlaceId
 local visitedServers = {}
 local teleporting = false
 local retryTime = 60  -- Retry after 1 minute if teleport fails
+local toggle = true  -- Start with detection enabled
 
--- Script to run on teleport (loads main script + autofarm)
-local scriptToRun = [[
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-]]
-
--- GUI elements
+-- GUI setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -58,7 +53,6 @@ countLabel.Text = "0 / 0 Players"
 countLabel.Parent = frame
 
 -- Toggle Button
-local toggle = true
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
 toggleButton.Position = UDim2.new(1, -65, 1, 5)
@@ -73,21 +67,27 @@ toggleButton.MouseButton1Click:Connect(function()
 	toggle = not toggle
 	toggleButton.Text = toggle and "On" or "Off"
 	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+	if toggle then
+		updateStatus("Detecting On", Color3.fromRGB(0, 255, 0))
+	else
+		updateStatus("Detecting Off", Color3.fromRGB(255, 0, 0))
+	end
 end)
 
--- Update GUI
+-- Update Status Text
 local function updateStatus(text, color)
 	statusLabel.Text = text
 	statusLabel.TextColor3 = color
 end
 
+-- Update Player Count
 local function updatePlayerCount()
 	local count = #Players:GetPlayers()
 	local max = game:GetService("Players").MaxPlayers or "?"
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Nearby player detection
+-- Nearby Player Detection
 local function isPlayerNearby()
 	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
 	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
@@ -102,7 +102,7 @@ local function isPlayerNearby()
 	return false
 end
 
--- Server hop logic (never repeat servers)
+-- Server Hop Logic
 local function serverHop()
 	if teleporting then return end  -- Prevent multiple teleport attempts
 	teleporting = true
@@ -116,9 +116,9 @@ local function serverHop()
 			local playerCountAfterJoin = server.playing + 1
 			if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 5 and not visitedServers[server.id] then
 				visitedServers[server.id] = true
-				queue_on_teleport(scriptToRun)
-				updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+				-- Teleport logic
 				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+				updateStatus("Teleporting...", Color3.fromRGB(255, 165, 0))
 				return
 			end
 		end
@@ -131,13 +131,13 @@ local function serverHop()
 	teleporting = false
 end
 
--- Retry logic if teleport fails
+-- Retry Teleport if Failed
 local function retryTeleport()
 	task.wait(retryTime)
 	serverHop()
 end
 
--- Main loop
+-- Main Loop
 task.spawn(function()
 	while true do
 		task.wait(0.5)
@@ -145,6 +145,7 @@ task.spawn(function()
 		updatePlayerCount()
 		local currentPlayerCount = #Players:GetPlayers()
 
+		-- Check for player proximity or server overpopulation
 		if isPlayerNearby() then
 			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
 			task.wait(0.1)
@@ -159,15 +160,5 @@ task.spawn(function()
 	end
 end)
 
--- Ensure teleportation keeps retrying if it fails
-task.spawn(function()
-	while true do
-		if teleporting then
-			updateStatus("Teleporting...", Color3.fromRGB(255, 165, 0))
-			task.wait(10)  -- Check status regularly
-		else
-			retryTeleport()
-		end
-		task.wait(0.1)
-	end
-end)
+-- Start teleportation process
+serverHop()
