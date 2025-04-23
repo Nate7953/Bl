@@ -1,17 +1,18 @@
-local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = 104715542330896
 
--- Track visited servers
+-- TRACK SERVERS
 local visitedServers = {}
 visitedServers[game.JobId] = true
 
 -- GUI
-local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", screenGui)
 frame.Size = UDim2.new(0, 240, 0, 70)
@@ -44,6 +45,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
+-- TOGGLE BUTTON
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -60,6 +62,7 @@ toggleButton.MouseButton1Click:Connect(function()
 	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
+-- STATUS & PLAYER COUNTS
 local function updateStatus(text, color)
 	statusLabel.Text = text
 	statusLabel.TextColor3 = color
@@ -71,6 +74,7 @@ local function updatePlayerCount()
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
+-- NEARBY PLAYER DETECTION
 local function isPlayerNearby()
 	local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 	if not root then return false end
@@ -84,6 +88,7 @@ local function isPlayerNearby()
 	return false
 end
 
+-- SERVER HOP FUNCTION using TeleportService
 local function serverHop()
 	updateStatus("Searching servers...", Color3.fromRGB(255, 255, 0))
 	local success, response = pcall(function()
@@ -91,8 +96,7 @@ local function serverHop()
 	end)
 
 	if not success or not response or not response.data then
-		updateStatus("Failed to fetch server data", Color3.fromRGB(255, 0, 0))
-		warn("Error while fetching servers:", response)
+		updateStatus("Failed to get servers", Color3.fromRGB(255, 0, 0))
 		return
 	end
 
@@ -100,27 +104,31 @@ local function serverHop()
 		local count = server.playing
 		if count <= 7 and not visitedServers[server.id] and server.id ~= game.JobId then
 			visitedServers[server.id] = true
-			updateStatus("Teleporting to server...", Color3.fromRGB(0, 255, 255))
-			local teleportSuccess, err = pcall(function()
+			updateStatus("Hopping to new server...", Color3.fromRGB(0, 255, 255))
+
+			local success2, err = pcall(function()
 				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
 			end)
-			if not teleportSuccess then
-				updateStatus("Teleport failed!", Color3.fromRGB(255, 0, 0))
-				warn("Teleport error:", err)
+
+			if not success2 then
+				updateStatus("Teleport failed", Color3.fromRGB(255, 0, 0))
+				warn("Teleport failed: " .. tostring(err))
 			end
 			return
 		end
 	end
 
-	updateStatus("No new servers found", Color3.fromRGB(255, 0, 0))
+	updateStatus("No valid servers found", Color3.fromRGB(255, 0, 0))
 end
 
+-- INIT CHECK
 updatePlayerCount()
 if #Players:GetPlayers() > 7 or isPlayerNearby() then
 	task.wait(0.5)
 	serverHop()
 end
 
+-- LOOP
 task.spawn(function()
 	while true do
 		task.wait(0.2)
