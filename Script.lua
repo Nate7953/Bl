@@ -128,9 +128,18 @@ local function teleportToServer()
     end
 end
 
+-- Function to reload your scripts after teleport
+local function reloadScripts()
+    -- Load auto-farming script after teleporting to the new server
+    loadstring(scriptToRun)()
+end
+
 -- Server Hop
 local function serverHop()
     teleportToServer()
+    -- Wait until the teleportation is complete, then reload the auto-farming script
+    wait(10) -- You may need to adjust this time based on your game's load time
+    reloadScripts()
 end
 
 -- Auto-rehop if stuck too long
