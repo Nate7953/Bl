@@ -1,17 +1,16 @@
 local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = 104715542330896
 
--- TRACK VISITED SERVERS
-local visitedServers = {}
-if getgenv()._joinedServerId then
-    visitedServers[getgenv()._joinedServerId] = true
-    getgenv()._joinedServerId = nil
-end
+-- Delta’s serverhop detection
+local isDelta = (syn and syn.protect_gui) or (getexecutorname and getexecutorname():lower():find("delta"))
 
--- GUI (unchanged)
+-- TRACK SERVERS
+local visitedServers = {}
+visitedServers[game.JobId] = true
+
+-- GUI (same as before)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -48,7 +47,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- TOGGLE (unchanged)
+-- TOGGLE BUTTON
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -65,7 +64,7 @@ toggleButton.MouseButton1Click:Connect(function()
     toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
--- STATUS
+-- STATUS & PLAYER COUNTS
 local function updateStatus(text, color)
     statusLabel.Text = text
     statusLabel.TextColor3 = color
@@ -77,111 +76,70 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- PROXIMITY DETECTION
+-- NEARBY PLAYER DETECTION
 local function isPlayerNearby()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
-    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if (myPos - player.Character.HumanoidRootPart.Position).Magnitude <= 35 then
-                return true
-            end
+            local dist = (player.Character.HumanoidRootPart.Position - root.Position).Magnitude
+            if dist <= 35 then return true end
         end
     end
     return false
 end
 
--- QUEUE SCRIPT ON TELEPORT
-local function queueNextScript(serverId)
-    local scriptToRun = string.format([[
-        getgenv()._joinedServerId = "%s"
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-    ]], serverId)
-    pcall(function()
-        queue_on_teleport(scriptToRun)
-    end)
-end
-
--- TELEPORT FAILSAFE
-local teleporting = false
-local lastTeleportTime = 0
-
-function serverHop()
-    if teleporting then return end
-
-    local success, result = pcall(function()
+-- SERVER HOP FUNCTION (Delta version)
+local function serverHop()
+    updateStatus("Searching servers...", Color3.fromRGB(255, 255, 0))
+    local success, response = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
     end)
 
-    if success and result and result.data then
-        for _, server in ipairs(result.data) do
-            local playerCountAfterJoin = server.playing + 1
-            if server.id ~= game.JobId and playerCountAfterJoin <= 8 and not visitedServers[server.id] then
-                visitedServers[server.id] = true
-                teleporting = true
-                lastTeleportTime = tick()
-
-                queueNextScript(server.id)
-                updateStatus("Teleporting...", Color3.fromRGB(0, 255, 255))
-
-                local successTeleport, err = pcall(function()
-                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-                end)
-
-                if not successTeleport then
-                    warn("Teleport failed:", err)
-                    updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
-                    teleporting = false
-                end
-
-                return
-            end
-        end
-        updateStatus("No Suitable Servers Found", Color3.fromRGB(255, 0, 0))
-    else
-        warn("Failed to retrieve server list.")
-        updateStatus("Error Retrieving Servers", Color3.fromRGB(255, 0, 0))
+    if not success or not response or not response.data then
+        updateStatus("Failed to get servers", Color3.fromRGB(255, 0, 0))
+        return
     end
+
+    for _, server in ipairs(response.data) do
+        local count = server.playing
+        if count <= 7 and not visitedServers[server.id] and server.id ~= game.JobId then
+            visitedServers[server.id] = true
+            updateStatus("Hopping to new server...", Color3.fromRGB(0, 255, 255))
+
+            if isDelta and serverhop then
+                serverhop(server.id)
+            else
+                warn("Delta's serverhop not found. Falling back to normal teleporting is not supported in this mode.")
+            end
+            return
+        end
+    end
+
+    updateStatus("No valid servers found", Color3.fromRGB(255, 0, 0))
 end
 
--- Teleport retry fallback
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if teleporting and tick() - lastTeleportTime > 60 then
-            teleporting = false
-            updateStatus("Teleport Timeout. Retrying...", Color3.fromRGB(255, 165, 0))
-            serverHop()
-        end
-    end
-end)
-
--- INIT
+-- INIT CHECK
 updatePlayerCount()
-local currentPlayerCount = #Players:GetPlayers()
-if currentPlayerCount > 7 or isPlayerNearby() then
+if #Players:GetPlayers() > 7 or isPlayerNearby() then
+    task.wait(0.5)
     serverHop()
 end
 
--- MAIN LOOP
+-- LOOP
 task.spawn(function()
     while true do
         task.wait(0.2)
         if not toggle then continue end
         updatePlayerCount()
-        local currentPlayerCount = #Players:GetPlayers()
 
-        if currentPlayerCount > 7 then
-            if not teleporting then
-                task.wait(4.1)
-                serverHop()
-            end
+        if #Players:GetPlayers() > 7 then
+            task.wait(4.1)
+            serverHop()
         elseif isPlayerNearby() then
-            if not teleporting then
-                task.wait(0.2)
-                serverHop()
-            end
+            task.wait(0.2)
+            serverHop()
         end
     end
 end)
