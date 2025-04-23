@@ -8,6 +8,7 @@ local visitedServers = {}
 visitedServers[game.JobId] = true
 
 local scriptToRun = [[
+-- Add your auto-farm script code here, it will be executed after teleportation
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
@@ -130,15 +131,16 @@ end
 
 -- Function to reload your scripts after teleport
 local function reloadScripts()
-    -- Load auto-farming script after teleporting to the new server
-    loadstring(scriptToRun)()
+    -- Ensure the script reloads only after teleport
+    print("Reloading auto-farming and other scripts...")
+    loadstring(scriptToRun)()  -- Add your auto-farming script
 end
 
 -- Server Hop
 local function serverHop()
     teleportToServer()
     -- Wait until the teleportation is complete, then reload the auto-farming script
-    wait(10) -- You may need to adjust this time based on your game's load time
+    wait(12)  -- Increased wait time to allow the new server to load
     reloadScripts()
 end
 
