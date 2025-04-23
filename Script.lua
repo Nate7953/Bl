@@ -1,107 +1,163 @@
---// Settings
-local MAX_PLAYERS_BEFORE_HOP = 8
-local DELAY_TOO_MANY_PLAYERS = 4.1
-local DELAY_PLAYER_NEARBY = 0.2
-local DETECTION_RANGE = 35
-
---// Services
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
---// Globals
 getgenv().visitedServers = getgenv().visitedServers or {}
-local visitedServers = getgenv().visitedServers
-local toggled = true
+local lastTeleportAttempt = 0
+local toggle = true
 
---// GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-local frame = Instance.new("Frame", gui)
-frame.Position = UDim2.new(0.5, -100, 0.1, 0)
-frame.Size = UDim2.new(0, 200, 0, 60)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+-- Teleport queue with your script URLs
+local function queueNextScript(serverId)
+    local scriptToRun = string.format([[
+        getgenv()._joinedServerId = "%s"
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+    ]], serverId)
+    pcall(function()
+        queue_on_teleport(scriptToRun)
+    end)
+end
+
+if getgenv()._joinedServerId then
+    getgenv().visitedServers[getgenv()._joinedServerId] = true
+    getgenv()._joinedServerId = nil
+end
+
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StatusGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = game.CoreGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 240, 0, 70)
+frame.Position = UDim2.new(0.5, -120, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
+frame.Parent = screenGui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(60, 60, 60)
+uiStroke.Thickness = 2
+uiStroke.Parent = frame
 
-local statusLabel = Instance.new("TextLabel", frame)
+local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, 0, 0.5, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.Text = "Loading..."
-statusLabel.Font = Enum.Font.SourceSansBold
+statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextScaled = true
+statusLabel.Text = "Checking..."
+statusLabel.Parent = frame
 
-local toggleButton = Instance.new("TextButton", frame)
+local countLabel = Instance.new("TextLabel")
+countLabel.Size = UDim2.new(1, 0, 0.5, 0)
+countLabel.Position = UDim2.new(0, 0, 0.5, 0)
+countLabel.BackgroundTransparency = 1
+countLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+countLabel.Font = Enum.Font.Gotham
+countLabel.TextScaled = true
+countLabel.Text = "0 / 0 Players"
+countLabel.Parent = frame
+
+local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
-toggleButton.Position = UDim2.new(1, -65, 1, -25)
-toggleButton.Text = "On"
+toggleButton.Position = UDim2.new(1, -65, 1, 5)
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+toggleButton.Text = "On"
+toggleButton.Font = Enum.Font.GothamBold
 toggleButton.TextScaled = true
+toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+toggleButton.Parent = frame
+
 toggleButton.MouseButton1Click:Connect(function()
-	toggled = not toggled
-	toggleButton.Text = toggled and "On" or "Off"
-	toggleButton.BackgroundColor3 = toggled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    toggle = not toggle
+    toggleButton.Text = toggle and "On" or "Off"
+    toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
---// Nearby player check
-local function isPlayerTooClose()
-	local myChar = LocalPlayer.Character
-	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return false end
-	local myPos = myChar.HumanoidRootPart.Position
-	for _, player in pairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			if (player.Character.HumanoidRootPart.Position - myPos).Magnitude <= DETECTION_RANGE then
-				return true
-			end
-		end
-	end
-	return false
+local function updateStatus(text, color)
+    statusLabel.Text = text
+    statusLabel.TextColor3 = color
 end
 
---// Teleport function
-local function teleportToServer(serverId)
-	getgenv().visitedServers[serverId] = true
-	queue_on_teleport([[
-		getgenv().visitedServers = getgenv().visitedServers or {}
-		loadstring(game:HttpGet("YOUR_SCRIPT_URL_HERE"))()
-	]])
-	TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
+local function updatePlayerCount()
+    local count = #Players:GetPlayers()
+    local max = Players.MaxPlayers or "?"
+    countLabel.Text = count .. " / " .. max .. " Players"
 end
 
---// Server hop
+local function isPlayerNearby()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
+    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local theirPos = player.Character.HumanoidRootPart.Position
+            if (myPos - theirPos).Magnitude <= 35 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function hopToNewServer()
-	local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
-	for _, server in ipairs(servers) do
-		if server.id ~= game.JobId and not visitedServers[server.id] and server.playing < server.maxPlayers and (server.playing + 1) < MAX_PLAYERS_BEFORE_HOP then
-			statusLabel.Text = "Hopping server..."
-			teleportToServer(server.id)
-			break
-		end
-	end
+    lastTeleportAttempt = tick()
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+
+    if success and result and result.data then
+        for _, server in ipairs(result.data) do
+            local playerCountAfterJoin = server.playing + 1
+            if server.id ~= game.JobId and server.playing < server.maxPlayers and playerCountAfterJoin <= 8 and not getgenv().visitedServers[server.id] then
+                queueNextScript(server.id)
+                updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+                return
+            end
+        end
+        updateStatus("No Smaller Servers", Color3.fromRGB(255, 80, 80))
+    else
+        warn("Failed to get server list")
+    end
 end
 
---// Main loop
 task.spawn(function()
-	while true do
-		task.wait(0.5)
-		if not toggled then continue end
+    while true do
+        task.wait(0.5)
+        if not toggle then continue end
+        updatePlayerCount()
+        local currentCount = #Players:GetPlayers()
 
-		local playersInServer = #Players:GetPlayers()
-		local tooClose = isPlayerTooClose()
+        if isPlayerNearby() then
+            updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
+            task.wait(0.2)
+            hopToNewServer()
+        elseif currentCount >= 8 then
+            updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
+            task.wait(4.1)
+            hopToNewServer()
+        else
+            updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+        end
+    end
+end)
 
-		if playersInServer >= MAX_PLAYERS_BEFORE_HOP then
-			statusLabel.Text = "Too many players!"
-			task.wait(DELAY_TOO_MANY_PLAYERS)
-			hopToNewServer()
-		elseif tooClose then
-			statusLabel.Text = "Player too close!"
-			task.wait(DELAY_PLAYER_NEARBY)
-			hopToNewServer()
-		else
-			statusLabel.Text = playersInServer .. " Players - OK"
-		end
-	end
+-- Retry teleport if it hangs
+task.spawn(function()
+    while true do
+        task.wait(10)
+        if lastTeleportAttempt > 0 and tick() - lastTeleportAttempt >= 60 then
+            updateStatus("Retrying Teleport", Color3.fromRGB(255, 100, 100))
+            hopToNewServer()
+            lastTeleportAttempt = 0
+        end
+    end
 end)
