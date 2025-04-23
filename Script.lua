@@ -117,8 +117,8 @@ TeleportService.TeleportInitFailed:Connect(function(result, errorDetails, ...)
 end)
 
 -- SERVER HOP
-local function serverHop()
-    if teleporting then return end -- Don't try to hop if already teleporting
+function serverHop()
+    if teleporting then return end
 
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
@@ -139,12 +139,11 @@ local function serverHop()
                 if successTeleport then
                     print("Successfully initiated teleport to:", server.id)
                     updateStatus("Teleporting...", Color3.fromRGB(0, 255, 255))
-                    return -- Exit after successful teleport initiation
+                    return
                 else
                     warn("TeleportToPlaceInstance failed:", errorMessage)
                     updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
                     teleporting = false
-                    -- Optionally, add a small delay before continuing to look for other servers
                     task.wait(1)
                 end
             end
@@ -156,6 +155,13 @@ local function serverHop()
     end
 end
 
+-- INITIAL PLAYER COUNT CHECK ON LOAD
+updatePlayerCount()
+local currentPlayerCount = #Players:GetPlayers()
+if currentPlayerCount > 7 or isPlayerNearby() then
+    serverHop()
+end
+
 -- MAIN LOOP
 task.spawn(function()
     while true do
@@ -165,8 +171,14 @@ task.spawn(function()
 
         local currentPlayerCount = #Players:GetPlayers()
 
-        if currentPlayerCount > 7 or isPlayerNearby() then
+        if currentPlayerCount > 7 then
             if not teleporting then
+                task.wait(4.1)
+                serverHop()
+            end
+        elseif isPlayerNearby() then
+            if not teleporting then
+                task.wait(0.2)
                 serverHop()
             end
         end
