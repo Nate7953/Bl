@@ -104,14 +104,22 @@ local function queueNextScript(serverId)
     end)
 end
 
--- TELEPORT FAILSAFE (Keep this part as it is)
+-- TELEPORT FAILSAFE
 local teleporting = false
-TeleportService.TeleportInitFailed:Connect(function(_, _, _)
+TeleportService.TeleportInitFailed:Connect(function(result, errorDetails, ...)
+    warn("Teleport Failed:")
+    warn("  Result:", result)
+    warn("  Error Details:", errorDetails)
+    warn("  Additional Info:", ...)
     teleporting = false
+    updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
+    task.delay(5, serverHop) -- Retry after a short delay
 end)
 
--- SERVER HOP (Keep this part as it is)
+-- SERVER HOP
 local function serverHop()
+    if teleporting then return end -- Don't try to hop if already teleporting
+
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
     end)
@@ -122,28 +130,33 @@ local function serverHop()
             if server.id ~= game.JobId and playerCountAfterJoin <= 8 and not visitedServers[server.id] then
                 visitedServers[server.id] = true
                 queueNextScript(server.id)
-                updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+                updateStatus("Attempting Teleport", Color3.fromRGB(255, 165, 0))
                 teleporting = true
-                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-
-                -- Retry if teleport fails after 60 seconds
-                task.delay(60, function()
-                    if teleporting then
-                        updateStatus("Teleport Failed. Retrying...", Color3.fromRGB(255, 0, 0))
-                        teleporting = false
-                        serverHop()
-                    end
+                local successTeleport, errorMessage = pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
                 end)
-                return -- Exit the loop after successfully initiating a teleport
+
+                if successTeleport then
+                    print("Successfully initiated teleport to:", server.id)
+                    updateStatus("Teleporting...", Color3.fromRGB(0, 255, 255))
+                    return -- Exit after successful teleport initiation
+                else
+                    warn("TeleportToPlaceInstance failed:", errorMessage)
+                    updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
+                    teleporting = false
+                    -- Optionally, add a small delay before continuing to look for other servers
+                    task.wait(1)
+                end
             end
         end
-        updateStatus("No New Servers", Color3.fromRGB(255, 0, 0))
+        updateStatus("No Suitable Servers Found", Color3.fromRGB(255, 0, 0))
     else
         warn("Failed to retrieve server list.")
+        updateStatus("Error Retrieving Servers", Color3.fromRGB(255, 0, 0))
     end
 end
 
--- MAIN LOOP (Modified to include your intended logic)
+-- MAIN LOOP
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -153,7 +166,7 @@ task.spawn(function()
         local currentPlayerCount = #Players:GetPlayers()
 
         if currentPlayerCount > 7 or isPlayerNearby() then
-            if not teleporting then -- Only hop if not already teleporting
+            if not teleporting then
                 serverHop()
             end
         end
