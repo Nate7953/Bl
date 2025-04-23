@@ -3,20 +3,17 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
-local currentJobId = game.JobId
 
+-- Cache of visited server IDs
 local visitedServers = {}
-local nextCursor = nil
-local teleporting = false
-local lastTeleportTime = 0
 
--- Script to run after teleport
+-- Script to run on teleport
 local scriptToRun = [[
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
 loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
 ]]
 
--- GUI setup
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -59,6 +56,7 @@ countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 countLabel.Parent = frame
 
+-- Toggle
 local toggle = true
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -76,6 +74,7 @@ toggleButton.MouseButton1Click:Connect(function()
 	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
+-- Update GUI
 local function updateStatus(text, color)
 	statusLabel.Text = text
 	statusLabel.TextColor3 = color
@@ -87,6 +86,7 @@ local function updatePlayerCount()
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
+-- Player proximity detection
 local function isPlayerNearby()
 	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return false end
 	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
@@ -101,84 +101,69 @@ local function isPlayerNearby()
 	return false
 end
 
--- Server API fetch
-local function getServers()
-	local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-	if nextCursor then url = url .. "&cursor=" .. nextCursor end
+-- Teleport flag
+local teleporting = false
+
+-- Server hop logic
+local function serverHop()
+	if teleporting then return end
+	teleporting = true
 
 	local success, result = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet(url))
+		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
 	end)
 
 	if success and result and result.data then
-		nextCursor = result.nextPageCursor
-		return result.data
-	end
-
-	return {}
-end
-
--- Teleport handler
-local function teleportTo(serverId)
-	if teleporting then return end
-	teleporting = true
-	lastTeleportTime = os.time()
-
-	visitedServers[serverId] = true
-	updateStatus("Teleporting...", Color3.fromRGB(255, 165, 0))
-	print("Attempting teleport to:", serverId)
-
-	queue_on_teleport(scriptToRun)
-
-	local success, result = pcall(function()
-		return TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
-	end)
-
-	if not success then
-		print("Teleport failed:", result)
-		updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
-		task.wait(60)
-		teleporting = false
-	end
-end
-
--- Server hopping
-local function serverHop()
-	local servers = getServers()
-	for _, server in ipairs(servers) do
-		local afterJoin = server.playing + 1
-		if server.id ~= currentJobId and not visitedServers[server.id] and afterJoin <= 7 then
-			teleportTo(server.id)
-			return
+		for _, server in ipairs(result.data) do
+			local id = server.id
+			local players = server.playing
+			if id ~= game.JobId and players < server.maxPlayers then
+				local totalAfterJoin = players + 1
+				if totalAfterJoin <= 5 and not visitedServers[id] then
+					visitedServers[id] = true
+					updateStatus("Hopping Server", Color3.fromRGB(255, 165, 0))
+					queue_on_teleport(scriptToRun)
+					local teleportSuccess = pcall(function()
+						TeleportService:TeleportToPlaceInstance(PlaceId, id, LocalPlayer)
+					end)
+					-- Wait to confirm teleport
+					task.delay(60, function()
+						if game.JobId == id then
+							teleporting = false
+						else
+							updateStatus("Retrying Teleport", Color3.fromRGB(255, 0, 0))
+							teleporting = false
+						end
+					end)
+					return
+				end
+			end
 		end
+		updateStatus("No Valid Servers", Color3.fromRGB(255, 80, 80))
+	else
+		updateStatus("Server List Error", Color3.fromRGB(255, 0, 0))
 	end
-	updateStatus("No Valid Servers", Color3.fromRGB(255, 100, 100))
+
+	teleporting = false
 end
 
--- Main loop
+-- Loop
 task.spawn(function()
 	while true do
-		task.wait(0.5)
+		task.wait(1)
 		if not toggle then continue end
 
 		updatePlayerCount()
+		local currentCount = #Players:GetPlayers()
 
-		local playerCount = #Players:GetPlayers()
 		if isPlayerNearby() then
 			updateStatus("Player Close", Color3.fromRGB(255, 80, 80))
-			task.wait(0.1)
 			serverHop()
-		elseif playerCount > 7 then
+		elseif currentCount > 7 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
-			task.wait(4.1)
 			serverHop()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
-		end
-
-		if teleporting and os.time() - lastTeleportTime > 60 then
-			print("Teleport stuck. Retrying...")
-			teleporting = false
 		end
 	end
 end)
