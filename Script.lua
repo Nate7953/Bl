@@ -7,7 +7,7 @@ local PlaceId = game.PlaceId
 local visitedServers = {}
 visitedServers[game.JobId] = true
 
--- Define the two scripts that need to be loaded after teleport
+-- Define the two script URLs
 local script1 = "https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"
 local script2 = "https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"
 
@@ -116,15 +116,34 @@ end
 -- Function to reload your scripts after teleport
 local function reloadScripts()
     print("Reloading auto-farming and other scripts...")
-    loadstring(game:HttpGet(script1))()
-    loadstring(game:HttpGet(script2))()
+
+    -- Directly loading the first script using loadstring
+    local success1, err1 = pcall(function()
+        loadstring(game:HttpGet(script1))()
+    end)
+    if not success1 then
+        warn("Failed to load script1: " .. err1)
+    else
+        print("Successfully loaded script1.")
+    end
+
+    -- Directly loading the second script using loadstring
+    local success2, err2 = pcall(function()
+        loadstring(game:HttpGet(script2))()
+    end)
+    if not success2 then
+        warn("Failed to load script2: " .. err2)
+    else
+        print("Successfully loaded script2.")
+    end
 end
 
 -- Server Hop
 local function serverHop()
     teleportToServer()
-    -- Wait until the teleportation is complete, then reload the auto-farming script
-    wait(12)  -- Increased wait time to allow the new server to load
+    
+    -- Wait for the new server to load, then reload the scripts
+    wait(15)  -- Increased wait time to allow the new server to load
     reloadScripts()
 end
 
@@ -145,10 +164,12 @@ end)
 task.spawn(function()
     while true do
         task.wait(1)
+        
         if not toggle then continue end
+        
         updatePlayerCount()
         local count = #Players:GetPlayers()
-        
+
         -- Check if another player is nearby, if so, teleport
         if count > 8 then
             updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
