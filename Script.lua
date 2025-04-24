@@ -1,11 +1,7 @@
-local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
-
-local visitedServers = {}
-visitedServers[game.JobId] = true
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -45,7 +41,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- Toggle for GUI
+-- Toggle
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -62,7 +58,6 @@ toggleButton.MouseButton1Click:Connect(function()
 	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
--- GUI Update Functions
 local function updateStatus(text, color)
 	statusLabel.Text = text
 	statusLabel.TextColor3 = color
@@ -74,55 +69,36 @@ local function updatePlayerCount()
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Lock to prevent multi-teleporting
-local isTeleporting = false
+-- Teleport function with queued scripts
+local function teleportToNewServer()
+	updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
 
--- Server Hop Logic
-local function teleportToServer()
-	if isTeleporting then return end
-	if #Players:GetPlayers() > 8 then
-		isTeleporting = true
-		TeleportService:SetTeleportData({ shouldLoadScripts = true })
-		local success, err = pcall(function()
-			TeleportService:Teleport(PlaceId, LocalPlayer)
-		end)
-		if not success then
-			warn("Teleport failed: " .. err)
-			isTeleporting = false
-		end
+	-- Queue scripts to run after teleport
+	queue_on_teleport([[
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
+		loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+	]])
+
+	-- Try teleport
+	local success, err = pcall(function()
+		TeleportService:Teleport(PlaceId, LocalPlayer)
+	end)
+	if not success then
+		updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
+		warn(err)
 	end
 end
 
--- Run these ONLY after teleport
-local teleportData = TeleportService:GetTeleportData()
-if teleportData and teleportData.shouldLoadScripts then
-	loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-	loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-end
-
--- Auto-rehop if stuck too long
-local lastJobId = game.JobId
-local lastHopTime = tick()
-task.spawn(function()
-	while true do
-		task.wait(60)
-		if game.JobId == lastJobId and tick() - lastHopTime > 300 then
-			updateStatus("Stuck? Rehopping", Color3.fromRGB(255, 0, 255))
-			teleportToServer()
-		end
-	end
-end)
-
--- Main Loop to check players
+-- Loop
 task.spawn(function()
 	while true do
 		task.wait(1)
 		if not toggle then continue end
 		updatePlayerCount()
 		if #Players:GetPlayers() > 8 then
-			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
-			task.wait(4)
-			teleportToServer()
+			updateStatus("Too Many Players", Color3.fromRGB(255, 120, 0))
+			task.wait(3)
+			teleportToNewServer()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
 		end
