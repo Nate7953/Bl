@@ -3,50 +3,11 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
+
 local visitedServers = {}
+visitedServers[game.JobId] = true
 
--- Function to load both scripts
-local function loadScripts()
-    -- Load Script 1
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/refs/heads/main/Script.lua"))()
-    
-    -- Load Script 2
-    loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-end
-
--- Call the loadScripts function immediately when the game starts
-loadScripts()
-
--- Function to check if there are too many players and teleport to a new server
-local isTeleporting = false
-
-local function teleportToServer()
-    if isTeleporting then
-        print("Already teleporting. Skipping teleport.")
-        return
-    end
-
-    isTeleporting = true
-    local players = #Players:GetPlayers()
-    
-    -- Change this to the maximum number of players you're comfortable with
-    if players > 10 then
-        -- If there are too many players, teleport to a new server
-        print("Too many players, teleporting to a new server.")
-        local targetServer = "example_server_id"  -- Replace this with actual server ID logic or API
-        TeleportService:TeleportToPlaceInstance(PlaceId, targetServer, LocalPlayer)
-    end
-    
-    -- After teleporting, we load both scripts again
-    wait(5)  -- Adjust this wait time as necessary
-    loadScripts()
-    isTeleporting = false
-end
-
--- Automatically check and teleport if necessary
-teleportToServer()
-
--- GUI Setup (This part remains unchanged)
+-- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
@@ -84,7 +45,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- GUI toggle for On/Off
+-- Toggle for GUI
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -96,19 +57,74 @@ toggleButton.TextScaled = true
 toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
 
 toggleButton.MouseButton1Click:Connect(function()
-    toggle = not toggle
-    toggleButton.Text = toggle and "On" or "Off"
-    toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+	toggle = not toggle
+	toggleButton.Text = toggle and "On" or "Off"
+	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
 -- GUI Update Functions
 local function updateStatus(text, color)
-    statusLabel.Text = text
-    statusLabel.TextColor3 = color
+	statusLabel.Text = text
+	statusLabel.TextColor3 = color
 end
 
 local function updatePlayerCount()
-    local count = #Players:GetPlayers()
-    local max = Players.MaxPlayers or "?"
-    countLabel.Text = count .. " / " .. max .. " Players"
+	local count = #Players:GetPlayers()
+	local max = Players.MaxPlayers or "?"
+	countLabel.Text = count .. " / " .. max .. " Players"
 end
+
+-- Lock to prevent multi-teleporting
+local isTeleporting = false
+
+-- Server Hop Logic
+local function teleportToServer()
+	if isTeleporting then return end
+	if #Players:GetPlayers() > 8 then
+		isTeleporting = true
+		TeleportService:SetTeleportData({ shouldLoadScripts = true })
+		local success, err = pcall(function()
+			TeleportService:Teleport(PlaceId, LocalPlayer)
+		end)
+		if not success then
+			warn("Teleport failed: " .. err)
+			isTeleporting = false
+		end
+	end
+end
+
+-- Run these ONLY after teleport
+local teleportData = TeleportService:GetTeleportData()
+if teleportData and teleportData.shouldLoadScripts then
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
+	loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+end
+
+-- Auto-rehop if stuck too long
+local lastJobId = game.JobId
+local lastHopTime = tick()
+task.spawn(function()
+	while true do
+		task.wait(60)
+		if game.JobId == lastJobId and tick() - lastHopTime > 300 then
+			updateStatus("Stuck? Rehopping", Color3.fromRGB(255, 0, 255))
+			teleportToServer()
+		end
+	end
+end)
+
+-- Main Loop to check players
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if not toggle then continue end
+		updatePlayerCount()
+		if #Players:GetPlayers() > 8 then
+			updateStatus("Too Many Players", Color3.fromRGB(255, 150, 80))
+			task.wait(4)
+			teleportToServer()
+		else
+			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+		end
+	end
+end)
