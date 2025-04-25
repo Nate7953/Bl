@@ -132,12 +132,12 @@ end
 -- Main loop
 task.spawn(function()
 	while true do
-		task.wait(1.4)
+		task.wait(2)
 		if not toggle then continue end
 		updatePlayerCount()
 		if #Players:GetPlayers() > 8 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 120, 0))
-			task.wait(4.3)
+			task.wait(4.6)
 			teleportToNewServer()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
