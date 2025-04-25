@@ -113,11 +113,11 @@ task.spawn(function()
 
 		if #Players:GetPlayers() > 8 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 100, 0))
-			task.wait(3)
+			task.wait(5)
 			hop()
 		elseif _G.VisitedServers[game.JobId] then
 			updateStatus("Already Visited. Hopping...", Color3.fromRGB(255, 150, 0))
-			task.wait(2)
+			task.wait(5)
 			hop()
 		else
 			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
