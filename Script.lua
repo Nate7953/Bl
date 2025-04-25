@@ -1,21 +1,11 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
-
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
--- Track visited JobIds globally across hops
+-- Track visited servers across sessions
 _G.VisitedServers = _G.VisitedServers or {}
-_G.VisitedServers[game.JobId] = true
-
--- Auto-run these scripts every teleport
-queue_on_teleport([[
-    if not game:IsLoaded() then game.Loaded:Wait() end
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-    loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-]])
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -55,6 +45,7 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
+-- Toggle
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -64,7 +55,6 @@ toggleButton.Text = "On"
 toggleButton.Font = Enum.Font.GothamBold
 toggleButton.TextScaled = true
 toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-
 toggleButton.MouseButton1Click:Connect(function()
 	toggle = not toggle
 	toggleButton.Text = toggle and "On" or "Off"
@@ -82,45 +72,76 @@ local function updatePlayerCount()
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
+-- Main hop function
 local function hop()
-	updateStatus("Hopping...", Color3.fromRGB(255, 255, 0))
-	local servers = {}
+	if not _G.VisitedServers[game.JobId] then
+		_G.VisitedServers[game.JobId] = true
+	end
 
+	updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
+
+	-- Scripts to run after teleport
+	queue_on_teleport([[
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
+		loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+	]])
+
+	local servers = {}
 	local success, result = pcall(function()
-		return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+		local pages = game.HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+		return pages
 	end)
 
-	if success then
-		local data = HttpService:JSONDecode(result)
-		for _, server in pairs(data.data) do
-			local id = server.id
-			if tonumber(server.playing) < 8 and not _G.VisitedServers[id] and id ~= game.JobId then
-				TeleportService:TeleportToPlaceInstance(PlaceId, id, LocalPlayer)
-				break
+	if success and result and result.data then
+		for _, server in pairs(result.data) do
+			if server.playing < server.maxPlayers and server.id ~= game.JobId and not _G.VisitedServers[server.id] then
+				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+				return
 			end
 		end
-	else
-		updateStatus("Failed to Get Servers", Color3.fromRGB(255, 0, 0))
 	end
+
+	-- If no valid server found, retry after short delay
+	task.delay(3, hop)
 end
 
+-- Start the main monitoring loop
 task.spawn(function()
 	while true do
-		task.wait(2)
+		task.wait(1)
 		if not toggle then continue end
 
 		updatePlayerCount()
 
+		-- Check for nearby players within 35 studs
+		for _, plr in pairs(Players:GetPlayers()) do
+			if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local distance = (plr.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+				if distance <= 35 then
+					updateStatus("Player too close!", Color3.fromRGB(255, 0, 0))
+					task.wait(0.1)
+					hop()
+					return
+				end
+			end
+		end
+
+		-- Check if too many players
 		if #Players:GetPlayers() > 8 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 100, 0))
-			task.wait(5)
+			task.wait(1)
 			hop()
-		elseif _G.VisitedServers[game.JobId] then
-			updateStatus("Already Visited. Hopping...", Color3.fromRGB(255, 150, 0))
-			task.wait(5)
-			hop()
-		else
-			updateStatus("Safe", Color3.fromRGB(0, 255, 0))
+			return
 		end
+
+		-- Check if we've visited this server already
+		if _G.VisitedServers[game.JobId] then
+			updateStatus("Already Visited. Hopping...", Color3.fromRGB(255, 150, 0))
+			task.wait(1)
+			hop()
+			return
+		end
+
+		updateStatus("Safe", Color3.fromRGB(0, 255, 0))
 	end
 end)
