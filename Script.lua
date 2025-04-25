@@ -1,7 +1,18 @@
+local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
+
+-- Persistent storage for visited servers
+local fileName = "visitedServers.json"
+local visitedServerIds = {}
+
+-- Load visited servers
+if isfile(fileName) then
+    local data = readfile(fileName)
+    visitedServerIds = HttpService:JSONDecode(data)
+end
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -69,27 +80,56 @@ local function updatePlayerCount()
 	countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Teleport function with queued scripts
+-- Smart teleport
 local function teleportToNewServer()
-	updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
+	updateStatus("Finding server...", Color3.fromRGB(255, 255, 0))
+	local found, serverId = false, nil
+	local cursor = ""
 
-	-- Queue scripts to run after teleport
-	queue_on_teleport([[
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-		loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-	]])
+	while not found do
+		local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor ~= "" and "&cursor=" .. cursor or "")
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(game:HttpGet(url))
+		end)
 
-	-- Try teleport
-	local success, err = pcall(function()
-		TeleportService:Teleport(PlaceId, LocalPlayer)
-	end)
-	if not success then
-		updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
-		warn(err)
+		if success and result and result.data then
+			for _, server in ipairs(result.data) do
+				if server.playing < 9 and not visitedServerIds[server.id] then
+					serverId = server.id
+					visitedServerIds[serverId] = true
+					found = true
+					break
+				end
+			end
+			cursor = result.nextPageCursor
+			if not cursor then break end
+		else
+			updateStatus("Server list failed", Color3.fromRGB(255, 0, 0))
+			warn(result)
+			return
+		end
+	end
+
+	if serverId then
+		writefile(fileName, HttpService:JSONEncode(visitedServerIds))
+		updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
+		queue_on_teleport([[
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
+			loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
+		]])
+		local success, err = pcall(function()
+			TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
+		end)
+		if not success then
+			updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
+			warn(err)
+		end
+	else
+		updateStatus("No valid servers", Color3.fromRGB(255, 100, 0))
 	end
 end
 
--- Loop
+-- Main loop
 task.spawn(function()
 	while true do
 		task.wait(1.4)
