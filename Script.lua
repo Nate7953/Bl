@@ -3,13 +3,11 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
-local visitedJobIds = {}  -- Table to track visited server IDs
-
 -- GUI Setup
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
+local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "StatusGui"
 screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 240, 0, 70)
@@ -17,8 +15,6 @@ frame.Position = UDim2.new(0.5, -120, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
 frame.Parent = screenGui
 
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
@@ -43,7 +39,6 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextScaled = true
 countLabel.Text = "0 / 0 Players"
 
--- Toggle
 local toggle = true
 local toggleButton = Instance.new("TextButton", frame)
 toggleButton.Size = UDim2.new(0, 60, 0, 25)
@@ -71,46 +66,38 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Teleport function with server-visit tracking
+-- Teleport to new server (no duplicate server using reserved jobId exclusion)
 local function teleportToNewServer()
-    -- Check if the server has already been visited
-    if visitedJobIds[game.JobId] then
-        return  -- No teleport needed if we've already been in this server
-    end
-
-    -- Mark this server as visited
-    visitedJobIds[game.JobId] = true
-
     updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
 
-    -- Queue scripts to run after teleport
-    queue_on_teleport([[
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-    ]])
-
-    -- Try teleport
+    local servers = {}
     local success, err = pcall(function()
-        TeleportService:Teleport(PlaceId, LocalPlayer)
+        local pages = TeleportService:GetTeleportSetting("ExcludedJobIds") or {}
+        local serverList = game.HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        for _, server in ipairs(serverList.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                table.insert(servers, server.id)
+            end
+        end
     end)
-    if not success then
-        updateStatus("Teleport Failed", Color3.fromRGB(255, 0, 0))
-        warn(err)
+
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(PlaceId, servers[1], LocalPlayer)
+    else
+        updateStatus("No Empty Server Found", Color3.fromRGB(255, 0, 0))
     end
 end
 
--- Loop for checking player count and triggering teleport if needed
+-- Auto-check loop
 task.spawn(function()
     while true do
         task.wait(1.4)
         if not toggle then continue end
         updatePlayerCount()
-
-        -- Teleport if there are too many players
         if #Players:GetPlayers() > 8 then
             updateStatus("Too Many Players", Color3.fromRGB(255, 120, 0))
-            task.wait(4.3)
-            teleportToNewServer()  -- Teleport if necessary
+            task.wait(4)
+            teleportToNewServer()
         else
             updateStatus("Safe", Color3.fromRGB(0, 255, 0))
         end
