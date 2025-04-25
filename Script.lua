@@ -132,7 +132,7 @@ end
 -- Main loop
 task.spawn(function()
 	while true do
-		task.wait(2)
+		task.wait(1)
 		if not toggle then continue end
 		updatePlayerCount()
 		if #Players:GetPlayers() > 8 then
