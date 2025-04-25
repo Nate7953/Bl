@@ -102,7 +102,7 @@ local function hop()
 	end
 
 	-- If no valid server found, retry after short delay
-	task.delay(3, hop)
+	task.delay(4, hop)
 end
 
 -- Start the main monitoring loop
@@ -129,7 +129,7 @@ task.spawn(function()
 		-- Check if too many players
 		if #Players:GetPlayers() > 8 then
 			updateStatus("Too Many Players", Color3.fromRGB(255, 100, 0))
-			task.wait(1)
+			task.wait(5)
 			hop()
 			return
 		end
