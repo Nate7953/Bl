@@ -2,9 +2,8 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
-local JobId = game.JobId
 
-local visitedJobId = JobId  -- Track current server
+local visitedJobIds = {}  -- Table to track visited server IDs
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -72,24 +71,22 @@ local function updatePlayerCount()
     countLabel.Text = count .. " / " .. max .. " Players"
 end
 
--- Teleport function with server-visit tracking for Delta
+-- Teleport function with server-visit tracking
 local function teleportToNewServer()
-    updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
-
-    -- Avoid rejoining the same server
-    if game.JobId == visitedJobId then
-        updateStatus("Already in this server", Color3.fromRGB(255, 0, 0))
-        return
+    -- Check if the server has already been visited
+    if visitedJobIds[game.JobId] then
+        return  -- No teleport needed if we've already been in this server
     end
 
-    visitedJobId = game.JobId  -- Update the visited server
+    -- Mark this server as visited
+    visitedJobIds[game.JobId] = true
+
+    updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
 
     -- Queue scripts to run after teleport
     queue_on_teleport([[
-        if game.JobId ~= "]] .. visitedJobId .. [[" then
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-            loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-        end
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
     ]])
 
     -- Try teleport
@@ -109,10 +106,11 @@ task.spawn(function()
         if not toggle then continue end
         updatePlayerCount()
 
+        -- Teleport if there are too many players
         if #Players:GetPlayers() > 8 then
             updateStatus("Too Many Players", Color3.fromRGB(255, 120, 0))
             task.wait(4.3)
-            teleportToNewServer()  -- Teleport when there are too many players
+            teleportToNewServer()  -- Teleport if necessary
         else
             updateStatus("Safe", Color3.fromRGB(0, 255, 0))
         end
