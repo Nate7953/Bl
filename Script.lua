@@ -11,8 +11,8 @@ if not _G.VisitedServers then
 end
 
 -- Wall Coordinates (Define the first bounding box region)
-local pos1 = Vector3.new(-287.26, 250, 350)  -- First coordinate
-local pos2 = Vector3.new(-231.89, 265.07, 357.42)  -- Second coordinate
+local pos1 = Vector3.new(-231.89, 265.07, 357.42)  -- First coordinate
+local pos2 = Vector3.new(-287.26, 250, 350)  -- Second coordinate
 
 -- Second Door Coordinates (Define the second bounding box region)
 local pos3 = Vector3.new(-287.16, 265.07, 330.31)  -- First coordinate of the second door
