@@ -15,8 +15,8 @@ local pos1 = Vector3.new(-231.89, 265.07, 357.42)  -- First coordinate
 local pos2 = Vector3.new(-287.26, 250, 350)  -- Second coordinate
 
 -- Second Door Coordinates (Define the second bounding box region)
-local pos3 = Vector3.new(-287.16, 265.07, 330.31)  -- First coordinate of the second door
-local pos4 = Vector3.new(-287.26, 250.81, 357.04)  -- Second coordinate of the second door
+local pos3 = Vector3.new(-287.26, 250, 357.04)  -- First coordinate of the second door
+local pos4 = Vector3.new(-287.16, 265.07, 330.31)  -- Second coordinate of the second door
 
 -- Create the Region3 (bounding box) for the first door
 local region1 = Region3.new(pos1, pos2)
