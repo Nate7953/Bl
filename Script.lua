@@ -30,14 +30,14 @@ local maxPos = Vector3.new(
     math.max(pos1.Z, pos2.Z, pos3.Z, pos4.Z)
 )
 
--- Create a visible wall that covers the full bounding box area
+-- Create a visible wall that covers the full bounding box area (but make it invisible and non-collidable)
 local wall = Instance.new("Part")
 wall.Size = maxPos - minPos  -- Size based on the minimum and maximum coordinates
 wall.Position = (minPos + maxPos) / 2  -- Center the wall between the min and max positions
 wall.Anchored = true
-wall.CanCollide = true
-wall.Color = Color3.fromRGB(255, 0, 0)  -- Red color for the wall
-wall.Transparency = 0.5  -- Slight transparency to make it visible
+wall.CanCollide = false  -- Make the wall passable so you can walk through it
+wall.Color = Color3.fromRGB(255, 0, 0)  -- Red color for the wall (for debugging purposes, can be removed)
+wall.Transparency = 1  -- Fully transparent, making it invisible
 wall.Parent = Workspace
 
 -- Function to teleport to a new server
