@@ -12,12 +12,12 @@ if not _G.VisitedServers then
 end
 
 -- Wall Coordinates (Define the first bounding box region)
-local pos1 = Vector3.new(-287.26, 250, 330)  -- First coordinate
-local pos2 = Vector3.new(-283.22, 270.07, 330.28)  -- Second coordinate
+local pos1 = Vector3.new(-231.61, 250, 357.34)  -- First coordinate
+local pos2 = Vector3.new(-287.39, 270.07, 350.95)  -- Second coordinate
 
 -- Second Door Coordinates (Define the second bounding box region)
-local pos3 = Vector3.new(-287.16, 265.07, 330.31)  -- First coordinate of the second door
-local pos4 = Vector3.new(-287.26, 250.81, 357.04)  -- Second coordinate of the second door
+local pos3 = Vector3.new(-286.80, 270.07, 357.34)  -- First coordinate of the second door
+local pos4 = Vector3.new(-282.89, 250.81, 330.31)  -- Second coordinate of the second door
 
 -- Create the visible wall for the first door (as a part)
 local wall1 = Instance.new("Part")
