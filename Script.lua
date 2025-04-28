@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
 local PlaceId = game.PlaceId
 
@@ -18,10 +19,25 @@ local pos2 = Vector3.new(-231.89, 265.07, 357.42)  -- Second coordinate
 local pos3 = Vector3.new(-287.16, 265.07, 330.31)  -- First coordinate of the second door
 local pos4 = Vector3.new(-287.26, 250.81, 357.04)  -- Second coordinate of the second door
 
--- Create the Region3 (bounding box) for the first door
-local region1 = Region3.new(pos1, pos2)
--- Create the Region3 (bounding box) for the second door
-local region2 = Region3.new(pos3, pos4)
+-- Create the visible wall for the first door (as a part)
+local wall1 = Instance.new("Part")
+wall1.Size = Vector3.new(pos2.X - pos1.X, pos2.Y - pos1.Y, pos2.Z - pos1.Z)
+wall1.Position = (pos1 + pos2) / 2
+wall1.Anchored = true
+wall1.CanCollide = true
+wall1.Color = Color3.fromRGB(255, 0, 0)  -- Red wall
+wall1.Transparency = 0.5  -- Slightly transparent to make it visible
+wall1.Parent = Workspace
+
+-- Create the visible wall for the second door (as a part)
+local wall2 = Instance.new("Part")
+wall2.Size = Vector3.new(pos4.X - pos3.X, pos4.Y - pos3.Y, pos4.Z - pos3.Z)
+wall2.Position = (pos3 + pos4) / 2
+wall2.Anchored = true
+wall2.CanCollide = true
+wall2.Color = Color3.fromRGB(0, 0, 255)  -- Blue wall
+wall2.Transparency = 0.5  -- Slightly transparent to make it visible
+wall2.Parent = Workspace
 
 -- Function to teleport to a new server
 local function hop()
@@ -59,12 +75,12 @@ local function isPlayerInRegion(player)
         local charPos = player.Character.HumanoidRootPart.Position
 
         -- Check for first region (door)
-        local regionMin1 = region1.CFrame.Position - region1.Size / 2
-        local regionMax1 = region1.CFrame.Position + region1.Size / 2
+        local regionMin1 = wall1.Position - wall1.Size / 2
+        local regionMax1 = wall1.Position + wall1.Size / 2
 
         -- Check for second region (door)
-        local regionMin2 = region2.CFrame.Position - region2.Size / 2
-        local regionMax2 = region2.CFrame.Position + region2.Size / 2
+        local regionMin2 = wall2.Position - wall2.Size / 2
+        local regionMax2 = wall2.Position + wall2.Size / 2
 
         -- Check if the player's position is within the first or second region bounds
         if (charPos.X >= regionMin1.X and charPos.X <= regionMax1.X and
