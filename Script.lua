@@ -26,7 +26,7 @@ local function hop()
     -- Scripts to run after teleport
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Blockspin-/refs/heads/main/.lua"))();
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))();
     ]])
 
     -- Attempt to get a list of available servers
