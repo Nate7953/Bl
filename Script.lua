@@ -50,7 +50,7 @@ local function hop()
     end
 
     -- Retry after delay if no server is found
-    task.delay(5, hop)
+    task.delay(10, hop)
 end
 
 -- Function to check if a player is inside any of the two Region3 (bounding boxes)
@@ -83,7 +83,7 @@ end
 -- Main loop to check for players entering either region
 task.spawn(function()
     while true do
-        task.wait(0.5)  -- Check every second
+        task.wait(0.05)  -- Check every second
         
         -- Loop through all players in the game
         for _, player in pairs(Players:GetPlayers()) do
