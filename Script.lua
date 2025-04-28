@@ -25,7 +25,7 @@ local function hop()
 
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Blockspin-new-auto-/refs/heads/main/Auto.lua"))();
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))();
     ]])
 
     local success, result = pcall(function()
