@@ -23,11 +23,13 @@ local function hop()
         _G.VisitedServers[game.JobId] = true
     end
 
+    -- Scripts to run after teleport
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))();
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Blockspin-/refs/heads/main/.lua"))();
     ]])
 
+    -- Attempt to get a list of available servers
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
     end)
@@ -42,7 +44,7 @@ local function hop()
     end
 
     -- Retry after delay if no server is found
-    task.delay(5, hop)
+    task.delay(25, hop)
 end
 
 -- Function to check if a player is inside the Region3 (bounding box)
@@ -78,4 +80,58 @@ task.spawn(function()
             end
         end
     end
+end)
+
+-- GUI for the button
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create the Button
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 200, 0, 50)
+startButton.Position = UDim2.new(0, 10, 0, 10)
+startButton.Text = "Start"
+startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)  -- Green background
+startButton.TextColor3 = Color3.fromRGB(255, 255, 255)   -- White text
+startButton.Font = Enum.Font.GothamBold
+startButton.TextSize = 24
+startButton.Parent = screenGui
+
+-- Function to make the button draggable
+local function makeDraggable(Frame)
+    local dragToggle = nil
+    local dragStart = nil
+    local dragPos = nil
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        local pos = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset + delta.X, Frame.Position.Y.Scale, Frame.Position.Y.Offset + delta.Y)
+        Frame.Position = pos
+    end
+
+    Frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragToggle = true
+            dragStart = input.Position
+            input.Changed:Connect(function()
+                if not input.UserInputState == Enum.UserInputState.Change then
+                    dragToggle = false
+                end
+            end)
+        end
+    end)
+
+    Frame.InputChanged:Connect(function(input)
+        if dragToggle and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input)
+        end
+    end)
+end
+
+-- Make the "Start" button draggable
+makeDraggable(startButton)
+
+-- Function to load the script when the button is clicked
+startButton.MouseButton1Click:Connect(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))()
 end)
