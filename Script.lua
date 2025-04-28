@@ -11,33 +11,34 @@ if not _G.VisitedServers then
     _G.VisitedServers = {}
 end
 
--- Wall Coordinates (Define the first bounding box region)
-local pos1 = Vector3.new(-231.61, 250, 357.34)  -- First coordinate
-local pos2 = Vector3.new(-287.39, 270.07, 350.95)  -- Second coordinate
+-- Coordinates for the four corners of the box
+local pos1 = Vector3.new(-231.89, 270.07, 357.42)  -- First corner
+local pos2 = Vector3.new(-287.26, 270.07, 357.04)  -- Second corner
+local pos3 = Vector3.new(-287.16, 250, 330.31)  -- Third corner
+local pos4 = Vector3.new(-231.58, 256.35, 330.37)  -- Fourth corner
 
--- Second Door Coordinates (Define the second bounding box region)
-local pos3 = Vector3.new(-286.80, 270.07, 357.34)  -- First coordinate of the second door
-local pos4 = Vector3.new(-282.89, 250.81, 330.31)  -- Second coordinate of the second door
+-- Calculate the size and position for the wall
+local minPos = Vector3.new(
+    math.min(pos1.X, pos2.X, pos3.X, pos4.X),
+    math.min(pos1.Y, pos2.Y, pos3.Y, pos4.Y),
+    math.min(pos1.Z, pos2.Z, pos3.Z, pos4.Z)
+)
 
--- Create the visible wall for the first door (as a part)
-local wall1 = Instance.new("Part")
-wall1.Size = Vector3.new(pos2.X - pos1.X, pos2.Y - pos1.Y, pos2.Z - pos1.Z)
-wall1.Position = (pos1 + pos2) / 2
-wall1.Anchored = true
-wall1.CanCollide = true
-wall1.Color = Color3.fromRGB(255, 0, 0)  -- Red wall
-wall1.Transparency = 0.5  -- Slightly transparent to make it visible
-wall1.Parent = Workspace
+local maxPos = Vector3.new(
+    math.max(pos1.X, pos2.X, pos3.X, pos4.X),
+    math.max(pos1.Y, pos2.Y, pos3.Y, pos4.Y),
+    math.max(pos1.Z, pos2.Z, pos3.Z, pos4.Z)
+)
 
--- Create the visible wall for the second door (as a part)
-local wall2 = Instance.new("Part")
-wall2.Size = Vector3.new(pos4.X - pos3.X, pos4.Y - pos3.Y, pos4.Z - pos3.Z)
-wall2.Position = (pos3 + pos4) / 2
-wall2.Anchored = true
-wall2.CanCollide = true
-wall2.Color = Color3.fromRGB(0, 0, 255)  -- Blue wall
-wall2.Transparency = 0.5  -- Slightly transparent to make it visible
-wall2.Parent = Workspace
+-- Create a visible wall that covers the full bounding box area
+local wall = Instance.new("Part")
+wall.Size = maxPos - minPos  -- Size based on the minimum and maximum coordinates
+wall.Position = (minPos + maxPos) / 2  -- Center the wall between the min and max positions
+wall.Anchored = true
+wall.CanCollide = true
+wall.Color = Color3.fromRGB(255, 0, 0)  -- Red color for the wall
+wall.Transparency = 0.5  -- Slight transparency to make it visible
+wall.Parent = Workspace
 
 -- Function to teleport to a new server
 local function hop()
@@ -69,34 +70,22 @@ local function hop()
     task.delay(5, hop)
 end
 
--- Function to check if a player is inside any of the two Region3 (bounding boxes)
+-- Function to check if a player is inside the defined bounding box region
 local function isPlayerInRegion(player)
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local charPos = player.Character.HumanoidRootPart.Position
 
-        -- Check for first region (door)
-        local regionMin1 = wall1.Position - wall1.Size / 2
-        local regionMax1 = wall1.Position + wall1.Size / 2
-
-        -- Check for second region (door)
-        local regionMin2 = wall2.Position - wall2.Size / 2
-        local regionMax2 = wall2.Position + wall2.Size / 2
-
-        -- Check if the player's position is within the first or second region bounds
-        if (charPos.X >= regionMin1.X and charPos.X <= regionMax1.X and
-            charPos.Y >= regionMin1.Y and charPos.Y <= regionMax1.Y and
-            charPos.Z >= regionMin1.Z and charPos.Z <= regionMax1.Z) or
-
-           (charPos.X >= regionMin2.X and charPos.X <= regionMax2.X and
-            charPos.Y >= regionMin2.Y and charPos.Y <= regionMax2.Y and
-            charPos.Z >= regionMin2.Z and charPos.Z <= regionMax2.Z) then
+        -- Check if the player's position is within the bounding box region
+        if (charPos.X >= minPos.X and charPos.X <= maxPos.X and
+            charPos.Y >= minPos.Y and charPos.Y <= maxPos.Y and
+            charPos.Z >= minPos.Z and charPos.Z <= maxPos.Z) then
             return true
         end
     end
     return false
 end
 
--- Main loop to check for players entering either region
+-- Main loop to check for players entering the region
 task.spawn(function()
     while true do
         task.wait(0.05)  -- Check every 50 milliseconds
@@ -104,7 +93,7 @@ task.spawn(function()
         -- Loop through all players in the game
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and isPlayerInRegion(player) then
-                -- If the player is in either region, teleport the local player
+                -- If the player is in the region, teleport the local player
                 hop()
                 return
             end
