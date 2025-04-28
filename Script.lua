@@ -1,147 +1,81 @@
-local TeleportService = game:GetService("TeleportService")
+-- Services
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
+
 local PlaceId = game.PlaceId
 
--- Track visited servers across sessions
-_G.VisitedServers = _G.VisitedServers or {}
-
--- GUI Setup
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "StatusGui"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 240, 0, 70)
-frame.Position = UDim2.new(0.5, -120, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BackgroundTransparency = 0.1
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
-
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-local uiStroke = Instance.new("UIStroke", frame)
-uiStroke.Color = Color3.fromRGB(60, 60, 60)
-uiStroke.Thickness = 2
-
-local statusLabel = Instance.new("TextLabel", frame)
-statusLabel.Size = UDim2.new(1, 0, 0.5, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextScaled = true
-statusLabel.Text = "Checking..."
-
-local countLabel = Instance.new("TextLabel", frame)
-countLabel.Size = UDim2.new(1, 0, 0.5, 0)
-countLabel.Position = UDim2.new(0, 0, 0.5, 0)
-countLabel.BackgroundTransparency = 1
-countLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-countLabel.Font = Enum.Font.Gotham
-countLabel.TextScaled = true
-countLabel.Text = "0 / 0 Players"
-
--- Toggle
-local toggle = true
-local toggleButton = Instance.new("TextButton", frame)
-toggleButton.Size = UDim2.new(0, 60, 0, 25)
-toggleButton.Position = UDim2.new(1, -65, 1, 5)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-toggleButton.Text = "On"
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextScaled = true
-toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-toggleButton.MouseButton1Click:Connect(function()
-	toggle = not toggle
-	toggleButton.Text = toggle and "On" or "Off"
-	toggleButton.BackgroundColor3 = toggle and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-end)
-
-local function updateStatus(text, color)
-	statusLabel.Text = text
-	statusLabel.TextColor3 = color
+if not _G.VisitedServers then
+    _G.VisitedServers = {}
 end
 
-local function updatePlayerCount()
-	local count = #Players:GetPlayers()
-	local max = Players.MaxPlayers or "?"
-	countLabel.Text = count .. " / " .. max .. " Players"
-end
+-- Wall Coordinates (Define the bounding box region)
+local pos1 = Vector3.new(-287.26, 250, 350)  -- First coordinate
+local pos2 = Vector3.new(-231.89, 265.07, 357.42)  -- Second coordinate
 
--- Main hop function
+-- Create the Region3 (bounding box)
+local region = Region3.new(pos1, pos2)
+
+-- Function to teleport to a new server
 local function hop()
-	if not _G.VisitedServers[game.JobId] then
-		_G.VisitedServers[game.JobId] = true
-	end
+    if not _G.VisitedServers[game.JobId] then
+        _G.VisitedServers[game.JobId] = true
+    end
 
-	updateStatus("Teleporting...", Color3.fromRGB(255, 200, 0))
+    queue_on_teleport([[
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Blockspin-new-auto-/refs/heads/main/Auto.lua"))();
+    ]])
 
-	-- Scripts to run after teleport
-	queue_on_teleport([[
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/Bl/main/Script.lua"))()
-		loadstring(game:HttpGet("https://rawscripts.net/raw/BlockSpin-OMEGA!!-Auto-Farm-Money-with-ATMs-and-Steak-House-35509"))()
-	]])
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    end)
 
-	local servers = {}
-	local success, result = pcall(function()
-		local pages = game.HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-		return pages
-	end)
+    if success and result and result.data then
+        for _, server in pairs(result.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId and not _G.VisitedServers[server.id] then
+                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+                return
+            end
+        end
+    end
 
-	if success and result and result.data then
-		for _, server in pairs(result.data) do
-			if server.playing < server.maxPlayers and server.id ~= game.JobId and not _G.VisitedServers[server.id] then
-				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-				return
-			end
-		end
-	end
-
-	-- If no valid server found, retry after short delay
-	task.delay(4, hop)
+    -- Retry after delay if no server is found
+    task.delay(5, hop)
 end
 
--- Start the main monitoring loop
+-- Function to check if a player is inside the Region3 (bounding box)
+local function isPlayerInRegion(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local charPos = player.Character.HumanoidRootPart.Position
+
+        -- Get min and max coordinates of the region
+        local regionMin = region.CFrame.Position - region.Size / 2
+        local regionMax = region.CFrame.Position + region.Size / 2
+
+        -- Check if the player's position is within the region bounds
+        if charPos.X >= regionMin.X and charPos.X <= regionMax.X and
+           charPos.Y >= regionMin.Y and charPos.Y <= regionMax.Y and
+           charPos.Z >= regionMin.Z and charPos.Z <= regionMax.Z then
+            return true
+        end
+    end
+    return false
+end
+
+-- Main loop to check for players entering the region
 task.spawn(function()
-	while true do
-		task.wait(1)
-		if not toggle then continue end
-
-		updatePlayerCount()
-
-		-- Check for nearby players within 35 studs
-		for _, plr in pairs(Players:GetPlayers()) do
-			if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-				local distance = (plr.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-				if distance <= 35 then
-					updateStatus("Player too close!", Color3.fromRGB(255, 0, 0))
-					task.wait(0.1)
-					hop()
-					return
-				end
-			end
-		end
-
-		-- Check if too many players
-		if #Players:GetPlayers() > 8 then
-			updateStatus("Too Many Players", Color3.fromRGB(255, 100, 0))
-			task.wait(5)
-			hop()
-			return
-		end
-
-		-- Check if we've visited this server already
-		if _G.VisitedServers[game.JobId] then
-			updateStatus("Already Visited. Hopping...", Color3.fromRGB(255, 150, 0))
-			task.wait(1)
-			hop()
-			return
-		end
-
-		updateStatus("Safe", Color3.fromRGB(0, 255, 0))
-	end
+    while true do
+        task.wait(0.1)  -- Check every second
+        
+        -- Loop through all players in the game
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and isPlayerInRegion(player) then
+                -- If the player is in the region, teleport the local player
+                hop()
+                return
+            end
+        end
+    end
 end)
