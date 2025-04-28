@@ -10,12 +10,18 @@ if not _G.VisitedServers then
     _G.VisitedServers = {}
 end
 
--- Wall Coordinates (Define the bounding box region)
+-- Wall Coordinates (Define the first bounding box region)
 local pos1 = Vector3.new(-287.26, 250, 350)  -- First coordinate
 local pos2 = Vector3.new(-231.89, 265.07, 357.42)  -- Second coordinate
 
--- Create the Region3 (bounding box)
-local region = Region3.new(pos1, pos2)
+-- Second Door Coordinates (Define the second bounding box region)
+local pos3 = Vector3.new(-287.16, 265.07, 330.31)  -- First coordinate of the second door
+local pos4 = Vector3.new(-287.26, 250.81, 357.04)  -- Second coordinate of the second door
+
+-- Create the Region3 (bounding box) for the first door
+local region1 = Region3.new(pos1, pos2)
+-- Create the Region3 (bounding box) for the second door
+local region2 = Region3.new(pos3, pos4)
 
 -- Function to teleport to a new server
 local function hop()
@@ -44,37 +50,45 @@ local function hop()
     end
 
     -- Retry after delay if no server is found
-    task.delay(25, hop)
+    task.delay(5, hop)
 end
 
--- Function to check if a player is inside the Region3 (bounding box)
+-- Function to check if a player is inside any of the two Region3 (bounding boxes)
 local function isPlayerInRegion(player)
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         local charPos = player.Character.HumanoidRootPart.Position
 
-        -- Get min and max coordinates of the region
-        local regionMin = region.CFrame.Position - region.Size / 2
-        local regionMax = region.CFrame.Position + region.Size / 2
+        -- Check for first region (door)
+        local regionMin1 = region1.CFrame.Position - region1.Size / 2
+        local regionMax1 = region1.CFrame.Position + region1.Size / 2
 
-        -- Check if the player's position is within the region bounds
-        if charPos.X >= regionMin.X and charPos.X <= regionMax.X and
-           charPos.Y >= regionMin.Y and charPos.Y <= regionMax.Y and
-           charPos.Z >= regionMin.Z and charPos.Z <= regionMax.Z then
+        -- Check for second region (door)
+        local regionMin2 = region2.CFrame.Position - region2.Size / 2
+        local regionMax2 = region2.CFrame.Position + region2.Size / 2
+
+        -- Check if the player's position is within the first or second region bounds
+        if (charPos.X >= regionMin1.X and charPos.X <= regionMax1.X and
+            charPos.Y >= regionMin1.Y and charPos.Y <= regionMax1.Y and
+            charPos.Z >= regionMin1.Z and charPos.Z <= regionMax1.Z) or
+
+           (charPos.X >= regionMin2.X and charPos.X <= regionMax2.X and
+            charPos.Y >= regionMin2.Y and charPos.Y <= regionMax2.Y and
+            charPos.Z >= regionMin2.Z and charPos.Z <= regionMax2.Z) then
             return true
         end
     end
     return false
 end
 
--- Main loop to check for players entering the region
+-- Main loop to check for players entering either region
 task.spawn(function()
     while true do
-        task.wait(0.1)  -- Check every second
+        task.wait(0.5)  -- Check every second
         
         -- Loop through all players in the game
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and isPlayerInRegion(player) then
-                -- If the player is in the region, teleport the local player
+                -- If the player is in either region, teleport the local player
                 hop()
                 return
             end
