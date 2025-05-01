@@ -11,33 +11,30 @@ if not _G.VisitedServers then
     _G.VisitedServers = {}
 end
 
--- Coordinates for the four corners of the box
-local pos1 = Vector3.new(-231.89, 270.07, 357.42)  -- First corner
-local pos2 = Vector3.new(-287.26, 270.07, 357.04)  -- Second corner
-local pos3 = Vector3.new(-287.16, 250, 330.31)  -- Third corner
-local pos4 = Vector3.new(-231.58, 256.35, 330.37)  -- Fourth corner
+-- Use two opposite corners to define the bounding box (kitchen area)
+local corner1 = Vector3.new(-287.26, 250, 330.31) -- Lower corner
+local corner2 = Vector3.new(-231.58, 270.07, 357.42) -- Upper corner
 
--- Calculate the size and position for the wall
-local minPos = Vector3.new(
-    math.min(pos1.X, pos2.X, pos3.X, pos4.X),
-    math.min(pos1.Y, pos2.Y, pos3.Y, pos4.Y),
-    math.min(pos1.Z, pos2.Z, pos3.Z, pos4.Z)
+-- Calculate min and max positions
+local regionMin = Vector3.new(
+    math.min(corner1.X, corner2.X),
+    math.min(corner1.Y, corner2.Y),
+    math.min(corner1.Z, corner2.Z)
+)
+local regionMax = Vector3.new(
+    math.max(corner1.X, corner2.X),
+    math.max(corner1.Y, corner2.Y),
+    math.max(corner1.Z, corner2.Z)
 )
 
-local maxPos = Vector3.new(
-    math.max(pos1.X, pos2.X, pos3.X, pos4.X),
-    math.max(pos1.Y, pos2.Y, pos3.Y, pos4.Y),
-    math.max(pos1.Z, pos2.Z, pos3.Z, pos4.Z)
-)
-
--- Create a visible wall that covers the full bounding box area (but make it invisible and non-collidable)
+-- Optional debug box
 local wall = Instance.new("Part")
-wall.Size = maxPos - minPos  -- Size based on the minimum and maximum coordinates
-wall.Position = (minPos + maxPos) / 2  -- Center the wall between the min and max positions
+wall.Size = regionMax - regionMin
+wall.Position = (regionMin + regionMax) / 2
 wall.Anchored = true
-wall.CanCollide = false  -- Make the wall passable so you can walk through it
-wall.Color = Color3.fromRGB(255, 0, 0)  -- Red color for the wall (for debugging purposes, can be removed)
-wall.Transparency = 1  -- Fully transparent, making it invisible
+wall.CanCollide = false
+wall.Color = Color3.fromRGB(255, 0, 0)
+wall.Transparency = 1
 wall.Parent = Workspace
 
 -- Function to teleport to a new server
@@ -46,13 +43,11 @@ local function hop()
         _G.VisitedServers[game.JobId] = true
     end
 
-    -- Scripts to run after teleport
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))();
     ]])
 
-    -- Attempt to get a list of available servers
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
     end)
@@ -66,34 +61,26 @@ local function hop()
         end
     end
 
-    -- Retry after delay if no server is found
     task.delay(5, hop)
 end
 
--- Function to check if a player is inside the defined bounding box region
+-- Player region check
 local function isPlayerInRegion(player)
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local charPos = player.Character.HumanoidRootPart.Position
-
-        -- Check if the player's position is within the bounding box region
-        if (charPos.X >= minPos.X and charPos.X <= maxPos.X and
-            charPos.Y >= minPos.Y and charPos.Y <= maxPos.Y and
-            charPos.Z >= minPos.Z and charPos.Z <= maxPos.Z) then
-            return true
-        end
+        local pos = player.Character.HumanoidRootPart.Position
+        return (pos.X >= regionMin.X and pos.X <= regionMax.X and
+                pos.Y >= regionMin.Y and pos.Y <= regionMax.Y and
+                pos.Z >= regionMin.Z and pos.Z <= regionMax.Z)
     end
     return false
 end
 
--- Main loop to check for players entering the region
+-- Detection loop
 task.spawn(function()
     while true do
-        task.wait(0.05)  -- Check every 50 milliseconds
-        
-        -- Loop through all players in the game
+        task.wait(0.05)
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and isPlayerInRegion(player) then
-                -- If the player is in the region, teleport the local player
                 hop()
                 return
             end
@@ -101,56 +88,48 @@ task.spawn(function()
     end
 end)
 
--- GUI for the button
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Create the Button
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0, 200, 0, 50)
 startButton.Position = UDim2.new(0, 10, 0, 10)
 startButton.Text = "Start"
-startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)  -- Green background
-startButton.TextColor3 = Color3.fromRGB(255, 255, 255)   -- White text
+startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 startButton.Font = Enum.Font.GothamBold
 startButton.TextSize = 24
 startButton.Parent = screenGui
 
--- Function to make the button draggable
+-- Make draggable
 local function makeDraggable(Frame)
-    local dragToggle = nil
-    local dragStart = nil
-    local dragPos = nil
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        local pos = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset + delta.X, Frame.Position.Y.Scale, Frame.Position.Y.Offset + delta.Y)
-        Frame.Position = pos
-    end
-
+    local dragging
+    local dragStart
     Frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragToggle = true
+            dragging = true
             dragStart = input.Position
             input.Changed:Connect(function()
-                if not input.UserInputState == Enum.UserInputState.Change then
-                    dragToggle = false
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
                 end
             end)
         end
     end)
-
     Frame.InputChanged:Connect(function(input)
-        if dragToggle and input.UserInputType == Enum.UserInputType.MouseMovement then
-            update(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            Frame.Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset + delta.X,
+                                       Frame.Position.Y.Scale, Frame.Position.Y.Offset + delta.Y)
+            dragStart = input.Position
         end
     end)
 end
 
--- Make the "Start" button draggable
 makeDraggable(startButton)
 
--- Function to load the script when the button is clicked
+-- Load script on click
 startButton.MouseButton1Click:Connect(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))()
 end)
