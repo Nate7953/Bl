@@ -4,10 +4,12 @@ local TeleportService = game:GetService("TeleportService")
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 
--- ✅ If just teleported, auto-load both scripts
+-- ✅ Auto-load after teleport
 local data = TeleportService:GetLocalPlayerTeleportData()
-if data and type(data) == "table" and data.__loader then
-    loadstring(data.__loader)()
+if data and data.__shouldLoad == true then
+    -- Load both scripts after teleport
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
     return
 end
 
@@ -45,16 +47,7 @@ local timerTxt = createLabel("Next Hop: 30:00", 5)
 local walletTxt = createLabel("Wallet: ...", 30)
 local bankTxt = createLabel("Bank: ...", 55)
 
--- ✅ Shared loader code
-local loaderCode = [[
--- Main script loader
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-
--- Additional script loader (Hopper)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
-]]
-
--- ✅ Server Picker Function
+-- ✅ Server Picker
 local function pickServer()
     local servers = {}
     local cursor = ""
@@ -78,6 +71,19 @@ local function pickServer()
     return #servers > 0 and servers[math.random(1, #servers)] or nil
 end
 
+-- ✅ Teleport Function
+local function teleportWithScripts()
+    local teleportData = {__shouldLoad = true}
+    local srv = pickServer()
+    if srv then
+        TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
+    else
+        warn("No new server found, retrying fallback...")
+        task.wait(60)
+        TeleportService:Teleport(PlaceId, plr, teleportData)
+    end
+end
+
 -- ✅ Test Button
 local totalTime = 1800 -- 30 minutes
 local testBtn = Instance.new("TextButton")
@@ -92,15 +98,7 @@ testBtn.TextSize = 14
 testBtn.Parent = frame
 testBtn.MouseButton1Click:Connect(function()
     totalTime = math.max(0, totalTime - 1740)
-    local teleportData = {__loader = loaderCode}
-    local srv = pickServer()
-    if srv then
-        TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
-    else
-        warn("No new server found, retrying fallback...")
-        task.wait(60)
-        TeleportService:Teleport(PlaceId, plr, teleportData)
-    end
+    teleportWithScripts()
 end)
 
 -- ✅ Wallet & Bank Reader
@@ -124,21 +122,12 @@ task.spawn(function()
     end
 end)
 
--- ✅ Countdown Teleport
+-- ✅ Countdown + Teleport
 task.spawn(function()
     while totalTime > 0 do
         timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
         task.wait(1)
         totalTime -= 1
     end
-
-    local teleportData = {__loader = loaderCode}
-    local srv = pickServer()
-    if srv then
-        TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
-    else
-        warn("No new server found, retrying fallback...")
-        task.wait(60)
-        TeleportService:Teleport(PlaceId, plr, teleportData)
-    end
+    teleportWithScripts()
 end)
