@@ -8,7 +8,7 @@ local JobId = game.JobId
 local data = TeleportService:GetLocalPlayerTeleportData()
 if data and data.__shouldLoadScripts then
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-	loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
+	loadstring(game:HttpGet("https://raw .githubusercontent.com/xQuartyx /QuartyzScript/main/Loader.lua"))()(
 	return
 end
 
