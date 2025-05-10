@@ -4,19 +4,21 @@ local TeleportService = game:GetService("TeleportService")
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 
+-- ✅ If just teleported, auto-load main script and this one again
 local data = TeleportService:GetLocalPlayerTeleportData()
 if data and type(data) == "table" and data.__loader then
     loadstring(data.__loader)()
     return
 end
 
+-- ✅ GUI Setup
 local gui = Instance.new("ScreenGui")
 gui.Name = "MoneyGui"
 gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 100)
+frame.Size = UDim2.new(0, 220, 0, 125)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BackgroundTransparency = 0.3
@@ -43,7 +45,7 @@ local timerTxt = createLabel("Next Hop: 30:00", 5)
 local walletTxt = createLabel("Wallet: ...", 30)
 local bankTxt = createLabel("Bank: ...", 55)
 
--- Update
+-- ✅ Update Wallet + Bank
 task.spawn(function()
 	while true do
 		local wallet = "N/A"
@@ -67,6 +69,7 @@ task.spawn(function()
 	end
 end)
 
+-- ✅ Server Picker
 local function pickServer()
 	local servers = {}
 	local cursor = ""
@@ -91,16 +94,32 @@ local function pickServer()
 	return #servers > 0 and servers[math.random(1, #servers)] or nil
 end
 
+-- ✅ Countdown + Teleport (with test button)
+local totalTime = 1800 -- 30 minutes
+
+-- ✅ Test Button
+local testBtn = Instance.new("TextButton")
+testBtn.Size = UDim2.new(0, 80, 0, 20)
+testBtn.Position = UDim2.new(1, -85, 1, -25)
+testBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+testBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+testBtn.Text = "Test"
+testBtn.Font = Enum.Font.SourceSansBold
+testBtn.TextSize = 14
+testBtn.Parent = frame
+testBtn.MouseButton1Click:Connect(function()
+	totalTime = math.max(0, totalTime - 1740) -- subtract 29 minutes
+end)
+
 task.spawn(function()
-	local totalTime = 1800 -- 30 minutes
 	while totalTime > 0 do
 		timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
 		task.wait(1)
 		totalTime -= 1
 	end
-        
+
 	local loaderCode = [[
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
 	]]
 
