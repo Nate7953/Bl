@@ -58,15 +58,19 @@ testBtn.Font = Enum.Font.SourceSansBold
 testBtn.TextSize = 14
 testBtn.Parent = frame
 testBtn.MouseButton1Click:Connect(function()
-	totalTime = math.max(0, totalTime - 1740)
+	totalTime = math.max(0, totalTime - 1740)  -- Subtract 29 minutes
 
 	-- ✅ Start Teleport Process on Test Button Click
 	local loaderCode = [[
+		-- Main script loader
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Hopper.lua"))()
+		
+		-- Additional script loader (Hopper)
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
 	]]
 	
-	local teleportData = {__loader = loaderCode}
+	local teleportData = {__loader = loaderCode}  -- Teleport data to include the loader code
+
 	local srv = pickServer()
 	if srv then
 		-- ✅ Teleport with loaderData when Test button is clicked
@@ -136,11 +140,15 @@ task.spawn(function()
 	end
 
 	local loaderCode = [[
+		-- Main script loader
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
+		
+		-- Additional script loader (Hopper)
 		loadstring(game:HttpGet("loadstring(game: HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()("))()
 	]]
 
-	local teleportData = {__loader = loaderCode}
+	local teleportData = {__loader = loaderCode}  -- Teleport data to include the loader code
+
 	local srv = pickServer()
 	if srv then
 		TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
