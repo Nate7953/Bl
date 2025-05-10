@@ -45,6 +45,22 @@ local timerTxt = createLabel("Next Hop: 30:00", 5)
 local walletTxt = createLabel("Wallet: ...", 30)
 local bankTxt = createLabel("Bank: ...", 55)
 
+-- ✅ Test Button (Visible)
+local totalTime = 1800 -- 30 minutes
+local testBtn = Instance.new("TextButton")
+testBtn.Size = UDim2.new(0, 200, 0, 20)
+testBtn.Position = UDim2.new(0, 10, 0, 80)
+testBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+testBtn.BorderSizePixel = 0
+testBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+testBtn.Text = "⏩ Test: Skip 29 Minutes"
+testBtn.Font = Enum.Font.SourceSansBold
+testBtn.TextSize = 14
+testBtn.Parent = frame
+testBtn.MouseButton1Click:Connect(function()
+	totalTime = math.max(0, totalTime - 1740)
+end)
+
 -- ✅ Update Wallet + Bank
 task.spawn(function()
 	while true do
@@ -94,23 +110,7 @@ local function pickServer()
 	return #servers > 0 and servers[math.random(1, #servers)] or nil
 end
 
--- ✅ Countdown + Teleport (with test button)
-local totalTime = 1800 -- 30 minutes
-
--- ✅ Test Button
-local testBtn = Instance.new("TextButton")
-testBtn.Size = UDim2.new(0, 80, 0, 20)
-testBtn.Position = UDim2.new(1, -85, 1, -25)
-testBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-testBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-testBtn.Text = "Test"
-testBtn.Font = Enum.Font.SourceSansBold
-testBtn.TextSize = 14
-testBtn.Parent = frame
-testBtn.MouseButton1Click:Connect(function()
-	totalTime = math.max(0, totalTime - 1740) -- subtract 29 minutes
-end)
-
+-- ✅ Countdown + Teleport
 task.spawn(function()
 	while totalTime > 0 do
 		timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
@@ -120,7 +120,7 @@ task.spawn(function()
 
 	local loaderCode = [[
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
+		loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()"))()
 	]]
 
 	local teleportData = {__loader = loaderCode}
