@@ -4,7 +4,7 @@ local TeleportService = game:GetService("TeleportService")
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 
--- ✅ If just teleported, auto-load main script and this one again
+-- ✅ If just teleported, auto-load both scripts
 local data = TeleportService:GetLocalPlayerTeleportData()
 if data and type(data) == "table" and data.__loader then
     loadstring(data.__loader)()
@@ -45,7 +45,40 @@ local timerTxt = createLabel("Next Hop: 30:00", 5)
 local walletTxt = createLabel("Wallet: ...", 30)
 local bankTxt = createLabel("Bank: ...", 55)
 
--- ✅ Test Button (Visible)
+-- ✅ Shared loader code
+local loaderCode = [[
+-- Main script loader
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
+
+-- Additional script loader (Hopper)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
+]]
+
+-- ✅ Server Picker Function
+local function pickServer()
+    local servers = {}
+    local cursor = ""
+    repeat
+        local success, result = pcall(function()
+            return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. cursor)
+        end)
+        if success then
+            local data = HttpService:JSONDecode(result)
+            for _, srv in ipairs(data.data) do
+                if srv.id ~= JobId and srv.playing < srv.maxPlayers then
+                    table.insert(servers, srv.id)
+                end
+            end
+            cursor = data.nextPageCursor
+        else
+            warn("Failed to fetch servers:", result)
+            break
+        end
+    until not cursor or #servers > 0
+    return #servers > 0 and servers[math.random(1, #servers)] or nil
+end
+
+-- ✅ Test Button
 local totalTime = 1800 -- 30 minutes
 local testBtn = Instance.new("TextButton")
 testBtn.Size = UDim2.new(0, 200, 0, 20)
@@ -58,103 +91,54 @@ testBtn.Font = Enum.Font.SourceSansBold
 testBtn.TextSize = 14
 testBtn.Parent = frame
 testBtn.MouseButton1Click:Connect(function()
-	totalTime = math.max(0, totalTime - 1740)  -- Subtract 29 minutes
-
-	-- ✅ Start Teleport Process on Test Button Click
-	local loaderCode = [[
-		-- Main script loader
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-		
-		-- Additional script loader (Hopper)
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
-	]]
-	
-	local teleportData = {__loader = loaderCode}  -- Teleport data to include the loader code
-
-	local srv = pickServer()
-	if srv then
-		-- ✅ Teleport with loaderData when Test button is clicked
-		TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
-	else
-		warn("No new server found, retrying fallback...")
-		task.wait(60)
-		TeleportService:Teleport(PlaceId, plr, teleportData)
-	end
+    totalTime = math.max(0, totalTime - 1740)
+    local teleportData = {__loader = loaderCode}
+    local srv = pickServer()
+    if srv then
+        TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
+    else
+        warn("No new server found, retrying fallback...")
+        task.wait(60)
+        TeleportService:Teleport(PlaceId, plr, teleportData)
+    end
 end)
 
--- ✅ Update Wallet + Bank
+-- ✅ Wallet & Bank Reader
 task.spawn(function()
-	while true do
-		local wallet = "N/A"
-		local bank = "N/A"
-
-		for _,v in ipairs(plr.PlayerGui:GetDescendants()) do
-			if v:IsA("TextLabel") then
-				local t = v.Text
-				if t:find("Hand Balance:") then
-					wallet = t:match("%$[%d,]+") or wallet
-				elseif t:find("Bank Balance:") then
-					bank = t:match("%$[%d,]+") or bank
-				end
-			end
-		end
-
-		walletTxt.Text = "Wallet: " .. wallet
-		bankTxt.Text = "Bank: " .. bank
-
-		task.wait(1)
-	end
+    while true do
+        local wallet = "N/A"
+        local bank = "N/A"
+        for _,v in ipairs(plr.PlayerGui:GetDescendants()) do
+            if v:IsA("TextLabel") then
+                local t = v.Text
+                if t:find("Hand Balance:") then
+                    wallet = t:match("%$[%d,]+") or wallet
+                elseif t:find("Bank Balance:") then
+                    bank = t:match("%$[%d,]+") or bank
+                end
+            end
+        end
+        walletTxt.Text = "Wallet: " .. wallet
+        bankTxt.Text = "Bank: " .. bank
+        task.wait(1)
+    end
 end)
 
--- ✅ Server Picker Function
-local function pickServer()
-	local servers = {}
-	local cursor = ""
-	repeat
-		local success, result = pcall(function()
-			return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. cursor)
-		end)
-		if success then
-			local data = HttpService:JSONDecode(result)
-			for _, srv in ipairs(data.data) do
-				if srv.id ~= JobId and srv.playing < srv.maxPlayers then
-					table.insert(servers, srv.id)
-				end
-			end
-			cursor = data.nextPageCursor
-		else
-			warn("Failed to fetch servers:", result)
-			break
-		end
-	until not cursor or #servers > 0
-
-	return #servers > 0 and servers[math.random(1, #servers)] or nil
-end
-
--- ✅ Countdown + Teleport
+-- ✅ Countdown Teleport
 task.spawn(function()
-	while totalTime > 0 do
-		timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
-		task.wait(1)
-		totalTime -= 1
-	end
+    while totalTime > 0 do
+        timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
+        task.wait(1)
+        totalTime -= 1
+    end
 
-	local loaderCode = [[
-		-- Main script loader
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-		
-		-- Additional script loader (Hopper)
-		loadstring(game:HttpGet("loadstring(game: HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()("))()
-	]]
-
-	local teleportData = {__loader = loaderCode}  -- Teleport data to include the loader code
-
-	local srv = pickServer()
-	if srv then
-		TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
-	else
-		warn("No new server found, retrying fallback...")
-		task.wait(60)
-		TeleportService:Teleport(PlaceId, plr, teleportData)
-	end
+    local teleportData = {__loader = loaderCode}
+    local srv = pickServer()
+    if srv then
+        TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
+    else
+        warn("No new server found, retrying fallback...")
+        task.wait(60)
+        TeleportService:Teleport(PlaceId, plr, teleportData)
+    end
 end)
