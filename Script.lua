@@ -1,135 +1,116 @@
--- Services
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
+local plr = game.Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-
+local TeleportService = game:GetService("TeleportService")
 local PlaceId = game.PlaceId
+local JobId = game.JobId
 
-if not _G.VisitedServers then
-    _G.VisitedServers = {}
+local data = TeleportService:GetLocalPlayerTeleportData()
+if data and type(data) == "table" and data.__loader then
+    loadstring(data.__loader)()
+    return
 end
 
--- Use two opposite corners to define the bounding box (kitchen area)
-local corner1 = Vector3.new(-287.26, 250, 330.31) -- Lower corner
-local corner2 = Vector3.new(-231.58, 270.07, 357.42) -- Upper corner
+local gui = Instance.new("ScreenGui")
+gui.Name = "MoneyGui"
+gui.ResetOnSpawn = false
+gui.Parent = plr:WaitForChild("PlayerGui")
 
--- Calculate min and max positions
-local regionMin = Vector3.new(
-    math.min(corner1.X, corner2.X),
-    math.min(corner1.Y, corner2.Y),
-    math.min(corner1.Z, corner2.Z)
-)
-local regionMax = Vector3.new(
-    math.max(corner1.X, corner2.X),
-    math.max(corner1.Y, corner2.Y),
-    math.max(corner1.Z, corner2.Z)
-)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 100)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.3
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
--- Optional debug box
-local wall = Instance.new("Part")
-wall.Size = regionMax - regionMin
-wall.Position = (regionMin + regionMax) / 2
-wall.Anchored = true
-wall.CanCollide = false
-wall.Color = Color3.fromRGB(255, 0, 0)
-wall.Transparency = 1
-wall.Parent = Workspace
-
--- Function to teleport to a new server
-local function hop()
-    if not _G.VisitedServers[game.JobId] then
-        _G.VisitedServers[game.JobId] = true
-    end
-
-    queue_on_teleport([[
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))();
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))();
-    ]])
-
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-    end)
-
-    if success and result and result.data then
-        for _, server in pairs(result.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId and not _G.VisitedServers[server.id] then
-                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-                return
-            end
-        end
-    end
-
-    task.delay(5, hop)
+local function createLabel(text, y)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -10, 0, 20)
+    lbl.Position = UDim2.new(0, 5, 0, y)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.Font = Enum.Font.SourceSansBold
+    lbl.TextSize = 16
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = text
+    lbl.Parent = frame
+    return lbl
 end
 
--- Player region check
-local function isPlayerInRegion(player)
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local pos = player.Character.HumanoidRootPart.Position
-        return (pos.X >= regionMin.X and pos.X <= regionMax.X and
-                pos.Y >= regionMin.Y and pos.Y <= regionMax.Y and
-                pos.Z >= regionMin.Z and pos.Z <= regionMax.Z)
-    end
-    return false
-end
+local timerTxt = createLabel("Next Hop: 30:00", 5)
+local walletTxt = createLabel("Wallet: ...", 30)
+local bankTxt = createLabel("Bank: ...", 55)
 
--- Detection loop
+-- Update
 task.spawn(function()
-    while true do
-        task.wait(0.05)
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and isPlayerInRegion(player) then
-                hop()
-                return
-            end
-        end
-    end
+	while true do
+		local wallet = "N/A"
+		local bank = "N/A"
+
+		for _,v in ipairs(plr.PlayerGui:GetDescendants()) do
+			if v:IsA("TextLabel") then
+				local t = v.Text
+				if t:find("Hand Balance:") then
+					wallet = t:match("%$[%d,]+") or wallet
+				elseif t:find("Bank Balance:") then
+					bank = t:match("%$[%d,]+") or bank
+				end
+			end
+		end
+
+		walletTxt.Text = "Wallet: " .. wallet
+		bankTxt.Text = "Bank: " .. bank
+
+		task.wait(1)
+	end
 end)
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local function pickServer()
+	local servers = {}
+	local cursor = ""
+	repeat
+		local success, result = pcall(function()
+			return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. cursor)
+		end)
+		if success then
+			local data = HttpService:JSONDecode(result)
+			for _, srv in ipairs(data.data) do
+				if srv.id ~= JobId and srv.playing < srv.maxPlayers then
+					table.insert(servers, srv.id)
+				end
+			end
+			cursor = data.nextPageCursor
+		else
+			warn("Failed to fetch servers:", result)
+			break
+		end
+	until not cursor or #servers > 0
 
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(0, 200, 0, 50)
-startButton.Position = UDim2.new(0, 10, 0, 10)
-startButton.Text = "Start"
-startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-startButton.Font = Enum.Font.GothamBold
-startButton.TextSize = 24
-startButton.Parent = screenGui
-
--- Make draggable
-local function makeDraggable(Frame)
-    local dragging
-    local dragStart
-    Frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    Frame.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            Frame.Position = UDim2.new(Frame.Position.X.Scale, Frame.Position.X.Offset + delta.X,
-                                       Frame.Position.Y.Scale, Frame.Position.Y.Offset + delta.Y)
-            dragStart = input.Position
-        end
-    end)
+	return #servers > 0 and servers[math.random(1, #servers)] or nil
 end
 
-makeDraggable(startButton)
+task.spawn(function()
+	local totalTime = 1800 -- 30 minutes
+	while totalTime > 0 do
+		timerTxt.Text = string.format("Next Hop: %02d:%02d", math.floor(totalTime / 60), totalTime % 60)
+		task.wait(1)
+		totalTime -= 1
+	end
+        
+	local loaderCode = [[
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/NateScripts/BlockSpinScripts/main/Hopper.lua"))()
+	]]
 
--- Load script on click
-startButton.MouseButton1Click:Connect(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/refs/heads/main/Block%20Spin/Default.lua"))()
+	local teleportData = {__loader = loaderCode}
+	local srv = pickServer()
+	if srv then
+		TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
+	else
+		warn("No new server found, retrying fallback...")
+		task.wait(60)
+		TeleportService:Teleport(PlaceId, plr, teleportData)
+	end
 end)
