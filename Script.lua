@@ -101,7 +101,7 @@ task.spawn(function()
         
 	local loaderCode = [[
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/NateScripts/BlockSpinScripts/main/Hopper.lua"))()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
 	]]
 
 	local teleportData = {__loader = loaderCode}
