@@ -59,6 +59,23 @@ testBtn.TextSize = 14
 testBtn.Parent = frame
 testBtn.MouseButton1Click:Connect(function()
 	totalTime = math.max(0, totalTime - 1740)
+
+	-- ✅ Start Teleport Process on Test Button Click
+	local loaderCode = [[
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Hopper.lua"))()
+	]]
+	
+	local teleportData = {__loader = loaderCode}
+	local srv = pickServer()
+	if srv then
+		-- ✅ Teleport with loaderData when Test button is clicked
+		TeleportService:TeleportToPlaceInstance(PlaceId, srv, plr, teleportData)
+	else
+		warn("No new server found, retrying fallback...")
+		task.wait(60)
+		TeleportService:Teleport(PlaceId, plr, teleportData)
+	end
 end)
 
 -- ✅ Update Wallet + Bank
@@ -85,7 +102,7 @@ task.spawn(function()
 	end
 end)
 
--- ✅ Server Picker
+-- ✅ Server Picker Function
 local function pickServer()
 	local servers = {}
 	local cursor = ""
@@ -120,7 +137,7 @@ task.spawn(function()
 
 	local loaderCode = [[
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()
-		loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"))()"))()
+		loadstring(game:HttpGet("loadstring(game: HttpGet("https://raw.githubusercontent.com/xQuartyx/QuartyzScript/main/Loader.lua"))()("))()
 	]]
 
 	local teleportData = {__loader = loaderCode}
