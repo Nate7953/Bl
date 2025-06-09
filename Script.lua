@@ -1,11 +1,9 @@
--- 🔁 Persistent auto-reloader for Garden Script
+-- 🔁 Persistent auto-reloader for your BlockSpin Auto-Farm
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
+local scriptURL = "https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"
 
--- URL of the Garden Script
-local scriptURL = "https://raw.githubusercontent.com/NoLag-id/No-Lag-HUB/refs/heads/main/Garden/Garden-V1.lua"
-
--- Auto-run after teleport
+-- Reload the script automatically after server hop
 Players.LocalPlayer.OnTeleport:Connect(function(state)
     if state == Enum.TeleportState.Started then
         queue_on_teleport([[
@@ -14,5 +12,5 @@ Players.LocalPlayer.OnTeleport:Connect(function(state)
     end
 end)
 
--- First-time execution
+-- Initial run
 loadstring(game:HttpGet(scriptURL))()
