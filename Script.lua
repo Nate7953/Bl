@@ -1,15 +1,8 @@
-local Players = game:GetService("Players")
+local wrapperUrl = "https://raw.githubusercontent.com/Nate7953/BlockSpin-Auto-Farm-Roblox/refs/heads/main/Script.lua"
+local originalScriptUrl = "https://raw.githubusercontent.com/NoLag-id/No-Lag-HUB/refs/heads/main/Garden/Garden-V1.lua"
 
-local gardenScriptURL = "https://raw.githubusercontent.com/NoLag-id/No-Lag-HUB/refs/heads/main/Garden/Garden-V1.lua"
+-- Queue the wrapper script to run after teleport (not just the original script)
+queue_on_teleport("loadstring(game:HttpGetAsync('" .. wrapperUrl .. "'))()")
 
--- Set up queue_on_teleport to auto-run the Garden script after teleport
-Players.LocalPlayer.OnTeleport:Connect(function(state)
-    if state == Enum.TeleportState.Started then
-        queue_on_teleport([[
-            loadstring(game:HttpGet("]] .. gardenScriptURL .. [["))()
-        ]])
-    end
-end)
-
--- Run the Garden script now
-loadstring(game:HttpGet(gardenScriptURL))()
+-- Load the original script now
+loadstring(game:HttpGetAsync(originalScriptUrl))()
